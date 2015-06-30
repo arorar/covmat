@@ -1,0 +1,20 @@
+---
+title: "Covariance Estimation"
+author: "Rohit Arora"
+date: "`r Sys.Date()`"
+output: 
+    rmarkdown::pdf_document:
+        number_sections: true
+        toc: yes
+        toc_depth: 2
+        fig_caption: yes
+fontsize: 12pt
+geometry: 
+    top=2cm, bottom=2cm, left=2cm, right=2cm
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+#Stambaugh Estimator

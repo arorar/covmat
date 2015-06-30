@@ -1,0 +1,15 @@
+Package: covmat
+Type: Package
+Title: Ccovariance Matrix estimation
+Version: 0.1
+Date: 2015-06-29
+Author: Rohit Arora
+Contributors: TODO
+Maintainer: Rohit Arora <emailrohitarora@gmail.com>
+Description: The package contains a selection of methods for estimating convariance matrices
+License: Artistic-2.0
+Suggests: knitr
+VignetteBuilder: knitr
+LazyLoad: yes
+Depends: factorAnalytics, robust, roxygen2, RCurl, VIM, ggplot2
+NeedsCompilation: yes

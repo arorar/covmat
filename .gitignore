@@ -41,3 +41,9 @@ $RECYCLE.BIN/
 Network Trash Folder
 Temporary Items
 .apdisk
+*.Rbuildignore
+*.pper
+.Rproj.user/96C1A5ED/sdb/s-6350D4D/lock_file
+.Rproj.user/96C1A5ED/cpp-definition-cache
+.Rproj.user/96C1A5ED/persistent-state
+.Rproj.user/96C1A5ED/saved_source_markers
