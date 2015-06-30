@@ -285,7 +285,7 @@ stambaugh.distance.plot <- function(model, level=0.975) {
     
     dates <- try( as.Date(gsub("[Robust\\.| Classical\\.]","",rownames(df))))
     df[,"Date"] <- c(seq(1:nrow(data)),seq(1:nrow(data)))
-    dateCheck <- ifelse( !class( dates ) == "try-error" && !is.na( dates ), FALSE, TRUE)
+    dateCheckFailed <- ifelse( class( dates ) != "try-error" && !is.na( dates ), FALSE, TRUE)
     
     colnames(df) <- c("Type","Distance","Outlier","Date"); rownames(df) <- NULL
     
@@ -311,7 +311,7 @@ stambaugh.distance.plot <- function(model, level=0.975) {
     }
 
     ind <- head(floor(seq(1,nrow(data),length.out = 5)),-1)
-    if(dateCheck) p <- p + scale_x_discrete(breaks = ind, labels=format(dates[ind],"%Y"))
+    if(!dateCheckFailed) p <- p + scale_x_discrete(breaks = ind, labels=format(dates[ind],"%Y"))
     p <- p + theme(legend.position="none")
     
     print(p)
