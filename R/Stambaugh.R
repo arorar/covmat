@@ -8,6 +8,7 @@
 #' 
 #' @param  R xts or matrix of asset returns
 #' @author Rohit Arora
+#' @export
 #' 
 #' 
 stambaugh.est <- function(R,...) {
@@ -244,6 +245,7 @@ stambaugh.ellipse.plot <- function(models) {
 #' @param  numeric value between 0 and 1 giving the chi-squared percent point 
 #' used to compute threshold for juding a point as an outlier
 #' @author Rohit Arora
+#' @export
 #' 
 #' 
 stambaugh.distance.plot <- function(model, level=0.975) {
@@ -323,7 +325,7 @@ stambaugh.distance.plot <- function(model, level=0.975) {
 #' @param  models fitted models for covariance
 #' @param  which takes values 1/2. 1 = Ellipse plot, 2 = distance plot
 #' @author Rohit Arora
-#' 
+#' @export
 #' 
 plot.stambaugh <- function(models, which=c(1,2),...) {
     n <- length(models$models)
@@ -353,9 +355,10 @@ plot <- function(x, which.plots=c(1,2),...) UseMethod("plot")
 #' @param  data a matrix, data-frame or an xts/zoo object
 #' @param  which takes values 3/4. 3 = Summary plot, 4 = Matrix plot
 #' @author Rohit Arora
+#' @export
 #' 
 #' 
-plot.missing <- function(data, which=c(3,4)) {
+plotmissing <- function(data, which=c(3,4)) {
     
     data <- coredata(data); cols <- colnames(data)
     if (length(cols) == 0) stop("Data should have column names")
