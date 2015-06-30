@@ -8,6 +8,8 @@ stambaugh.est(R, ...)
 }
 \arguments{
 \item{R}{xts or matrix of asset returns}
+
+\item{...}{allows passing additional paramters}
 }
 \description{
 Implement Stamgaugh Covariance estimate for multiple starting dates

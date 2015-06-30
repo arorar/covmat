@@ -4,12 +4,14 @@
 \alias{plot.stambaugh}
 \title{Plot Ellipsis or Distance plot for the Stambaugh estimator}
 \usage{
-\method{plot}{stambaugh}(models, which = c(1, 2), ...)
+plot.stambaugh(x, which = c(1, 2), ...)
 }
 \arguments{
-\item{models}{fitted models for covariance}
+\item{x}{fitted models for covariance}
 
 \item{which}{takes values 1/2. 1 = Ellipse plot, 2 = distance plot}
+
+\item{...}{allows passing additional paramters}
 }
 \description{
 Plot Ellipsis or Distance plot for the Stambaugh estimator

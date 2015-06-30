@@ -3,23 +3,23 @@
 \name{stambaugh.distance.plot}
 \alias{stambaugh.distance.plot}
 \title{Compute Mahalanobis distances for each of the data points and plot it against
-upper 2.5% chi-square quantile}
+upper 2.5\% chi-square quantile}
 \usage{
 stambaugh.distance.plot(model, level = 0.975)
 }
 \arguments{
-\item{models}{fitted models for covariance}
+\item{model}{fitted models for covariance}
 
-\item{numeric}{value between 0 and 1 giving the chi-squared percent point
+\item{level}{value between 0 and 1 giving the chi-squared percent point
 used to compute threshold for juding a point as an outlier}
 }
 \description{
 Compute Mahalanobis distances for each of the data points and plot it against
-upper 2.5% chi-square quantile
+upper 2.5\% chi-square quantile
 }
 \details{
 This method takes in fitted models for Stamgaugh Estimator. It then uses the
-distances computed for each stage and plots it against the upper level%
+distances computed for each stage and plots it against the upper level\%
 Chi-Square quantile
 }
 \author{

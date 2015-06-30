@@ -10,6 +10,8 @@ stambaugh.fit(R, style = c("classic", "robust"), ...)
 \arguments{
 \item{R}{xts or matrix of asset returns}
 
+\item{style}{type of model to fit. Takes 2 values classic/robust}
+
 \item{...}{pass paramters to fitTimeSeriesFactorModel(factorAnalytics),
 covRob, lmRob (Robust) functions}
 }

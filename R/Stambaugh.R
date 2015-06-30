@@ -7,6 +7,8 @@
 #' estimate can also be robustified
 #' 
 #' @param  R xts or matrix of asset returns
+#' @param  ... allows passing additional paramters
+#' @import factorAnalytics RCurl robust robustbase xts zoo
 #' @author Rohit Arora
 #' @export
 #' 
@@ -175,6 +177,7 @@ stambaugh.est <- function(R,...) {
 #' @param  R xts or matrix of asset returns
 #' @param  ... pass paramters to fitTimeSeriesFactorModel(factorAnalytics), 
 #' covRob, lmRob (Robust) functions
+#' @param style type of model to fit. Takes 2 values classic/robust
 #' @author Rohit Arora
 #' @export
 #' 
@@ -221,6 +224,7 @@ stambaugh.fit <- function(R, style=c("classic","robust"), ...) {
 #' comparison of the fitted models using ellipsis plot
 #' 
 #' @param  models fitted models for covariance
+#' @export
 #' @author Rohit Arora
 #' 
 #' 
@@ -229,21 +233,21 @@ stambaugh.ellipse.plot <- function(models) {
   if (length(models) != 2) stop("2 models needed for ellipse plot")
 
   .models <- models$models
-  class(.models) <- "covfm"
-  plot(.models,which=4)
+  plot.covfm(.models, which.plots = 4)
 }
 
 #' Compute Mahalanobis distances for each of the data points and plot it against
-#' upper 2.5% chi-square quantile
+#' upper 2.5\% chi-square quantile
 #' 
 #' @details
 #' This method takes in fitted models for Stamgaugh Estimator. It then uses the 
-#' distances computed for each stage and plots it against the upper level% 
+#' distances computed for each stage and plots it against the upper level\% 
 #' Chi-Square quantile
 #' 
-#' @param  models fitted models for covariance
-#' @param  numeric value between 0 and 1 giving the chi-squared percent point 
+#' @param  model fitted models for covariance
+#' @param  level value between 0 and 1 giving the chi-squared percent point 
 #' used to compute threshold for juding a point as an outlier
+#' @import ggplot2
 #' @author Rohit Arora
 #' @export
 #' 
@@ -289,12 +293,11 @@ stambaugh.distance.plot <- function(model, level=0.975) {
     
     colnames(df) <- c("Type","Distance","Outlier","Date"); rownames(df) <- NULL
     
-    p <- ggplot(data=df, aes(x=Date,y=Distance)) + 
-        geom_point(aes(size=Distance, col=Type, shape=Type)) + 
-        facet_grid(~Type) + geom_text(aes(label=Outlier),hjust=1, vjust=1) +
+    p <- ggplot(data=df, aes_string(x='Date',y='Distance')) + 
+        geom_point(aes_string(size='Distance', col='Type', shape='Type')) + 
+        facet_grid(~Type) + geom_text(aes_string(label='Outlier'),hjust=1, vjust=1) +
         xlab("Date") + 
         ylab("Square Root of Mahalanobis Distance") + 
-        scale_size_continuous(range = c(2,8)) + 
         theme(strip.text.x = element_text(size = 16), 
               axis.text=element_text(size=12),
               axis.title=element_text(size=14))
@@ -314,7 +317,9 @@ stambaugh.distance.plot <- function(model, level=0.975) {
     if(!dateCheckFailed) p <- p + scale_x_discrete(breaks = ind, labels=format(dates[ind],"%Y"))
     p <- p + theme(legend.position="none")
     
+    options(warn=-1)
     print(p)
+    options(warn=0)
 }
 
 #' Plot Ellipsis or Distance plot for the Stambaugh estimator
@@ -322,29 +327,22 @@ stambaugh.distance.plot <- function(model, level=0.975) {
 #' @details
 #' This method takes in fitted models and a paramter for deciding the type of plot
 #' 
-#' @param  models fitted models for covariance
+#' @param  x fitted models for covariance
 #' @param  which takes values 1/2. 1 = Ellipse plot, 2 = distance plot
+#' @param  ... allows passing additional paramters
 #' @author Rohit Arora
 #' @export
 #' 
-plot.stambaugh <- function(models, which=c(1,2),...) {
-    n <- length(models$models)
+plot.stambaugh <- function(x, which=c(1,2),...) {
+  
+    n <- length(x$models)
     if (n != 2 && which[1] == 1) stop("2 models needed for ellipse plot")
         
     which <- which[1]
 
-    if (which == 1) stambaugh.ellipse.plot(models,...)
-    if (which == 2) stambaugh.distance.plot(models,...)
+    if (which == 1) stambaugh.ellipse.plot(x)
+    if (which == 2) stambaugh.distance.plot(x,...)
 }
-
-#' Generic plot method for Stambaugh type objects
-#'
-#' @param x Stambaugh objects
-#' @param ... 
-#' @export
-plot <- function(x, which.plots=c(1,2),...) UseMethod("plot")
-
-
 
 #' Plot data to visualize missing values
 #' 
@@ -354,6 +352,7 @@ plot <- function(x, which.plots=c(1,2),...) UseMethod("plot")
 #' 
 #' @param  data a matrix, data-frame or an xts/zoo object
 #' @param  which takes values 3/4. 3 = Summary plot, 4 = Matrix plot
+#' @import VIM
 #' @author Rohit Arora
 #' @export
 #' 

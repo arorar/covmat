@@ -2,6 +2,8 @@
 title: "Covariance Estimation"
 author: "Rohit Arora"
 date: "`r Sys.Date()`"
+header-includes:
+   - \usepackage{float}
 output: 
     rmarkdown::pdf_document:
         number_sections: true
@@ -11,10 +13,83 @@ output:
 fontsize: 12pt
 geometry: 
     top=2cm, bottom=2cm, left=2cm, right=2cm
+    
+references:
+- id: Stambaugh1997
+  title: Analyzing investments whose histories differ in length
+  author:
+  - family: Stambaugh, R. F.
+  URL: 'http://ideas.repec.org/a/eee/jfinec/v45y1997i3p285-331.html'
+  issue: 3
+  volume: 45
+  publisher: Journal of Financial Economics
+  type: article-journal
+  pages: 285-331
+  issued:
+    year: 1997
 vignette: >
   %\VignetteIndexEntry{Vignette Title}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
+```{r load_packages, include=FALSE}
+knitr::opts_chunk$set(fig.pos="h")
+library(covmat)
+library(xts)
+library(robust)
+```
+
 #Stambaugh Estimator
+
+We will use hedge fund data with six funds. Notice how some columns have missing values. 
+
+```{r load-data, echo=FALSE}
+data <- read.csv("../data/hfunds5.ue.ts.csv",header=TRUE)
+head(data,3)
+```
+
+Lets start by visualizing the data to find out where we have missing values.
+
+```{r visual-missing1}
+plotmissing(data,3)
+
+```
+\
+
+```{r visual-missing2}
+plotmissing(data,4)
+
+```
+\
+
+We can discard data and consider a truncated estimator for covariance but [@Stambaugh1997] proposed and interesting method to utilize all data and use cross sectional dependency in returns data to
+construct a more accurate covarince matrix.
+
+```{r prepare-fit-data, echo=FALSE}
+data <- xts(data[,-1],order.by=as.Date(data[,1]))
+data <- data[,-which(colnames(data) == "EVENT.1")]
+```
+
+Let us fit both classical and roubst estimators of covariance using this methodology. We can use the method stambaugh.fit to construct the two covariance matrices.
+
+```{r fit-model}
+cov.control <- covRob.control(estim="mcd",alpha=0.9)
+models <- stambaugh.fit(data, cov.control=cov.control)
+```
+
+We can visually compare the covariances by examinging thier ellipses
+```{r plot-ellipse}
+plot(models,1)
+```
+\
+
+We can also look at the distances of the individual funds to examine the outliers
+```{r plot-distance}
+plot(models,2,0.975)
+```
+\
+
+
+#References
+
