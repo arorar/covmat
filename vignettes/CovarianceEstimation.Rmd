@@ -20,7 +20,6 @@ abstract:  There exists a rich modern set of covariance matrix estimator methods
 vignette: >
   %\VignetteIndexEntry{Vignette Title}
   %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
 ---
 
 $\pagebreak$
@@ -127,5 +126,5 @@ Notice how classical method only suggests one borderline outlier for case 41. Ho
 
 #References
 ```{r references, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, echo=FALSE}
-write.bibtex(file="references.bib")
+#write.bibtex(file="references.bib")
 ```

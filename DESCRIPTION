@@ -8,10 +8,9 @@ Contributors: TODO
 Maintainer: Rohit Arora <emailrohitarora@gmail.com>
 Description: The package contains a selection of methods for estimating convariance matrices
 License: Artistic-2.0
-Suggests: knitr
+Suggests: knitr, testthat, roxygen2
 VignetteBuilder: knitr
 LazyLoad: yes
-Suggets: testthat
 Imports: 
   factorAnalytics,
   zoo,
@@ -20,5 +19,7 @@ Imports:
   robustbase,
   RCurl, 
   VIM, 
-  ggplot2
+  ggplot2,
+  knitcitations, 
+  quantmod
 NeedsCompilation: yes

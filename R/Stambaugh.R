@@ -148,7 +148,7 @@ stambaugh.est <- function(R,...) {
     est <- covariance.est(long, short, loc.est, cov.est, ...)
     loc.est <- est$loc; cov.est <- est$cov
     
-    rend <- ifelse(j == (len -1), nrow(data), unique.sort.start[j+2]-1) 
+    rend <- ifelse(j == (len -1), nrow(data.sort), unique.sort.start[j+2]-1) 
     ind <- unique.sort.start[j+1]:rend
     dist[ind] <- sqrt(mahalanobis(x = data.sort[ind,1:end], 
                                     center = loc.est,cov= cov.est))
