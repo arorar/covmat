@@ -1,6 +1,8 @@
 ---
 title: "Covariance Estimation"
 author: "Rohit Arora"
+header-includes:
+   - \usepackage{float}
 date: "`r Sys.Date()`"
 output: 
     rmarkdown::pdf_document:
@@ -11,22 +13,10 @@ output:
 fontsize: 12pt
 geometry: 
     top=3cm, bottom=2cm, left=3cm, right=3cm
+bibliography: references.bib
 documentclass: article
 abstract:  There exists a rich modern set of covariance matrix estimator methods for use in financial data. The purpose of $\texttt{covmat}$ package is to implement some of these techniques such that they are readily available to be used with appropriate financial data. The purpose of this vignette is to demonstrate the usage of functions implemented in the $\texttt{covmat}$ package.
 
-references:
-- id: Stambaugh1997
-  title: Analyzing investments whose histories differ in length
-  author:
-  - family: Stambaugh, R. F.
-  URL: 'http://ideas.repec.org/a/eee/jfinec/v45y1997i3p285-331.html'
-  issue: 3
-  volume: 45
-  publisher: Journal of Financial Economics
-  type: article-journal
-  pages: 285-331
-  issued:
-    year: 1997
 vignette: >
   %\VignetteIndexEntry{Vignette Title}
   %\VignetteEngine{knitr::rmarkdown}
@@ -37,6 +27,11 @@ $\pagebreak$
 
 ```{r load_packages, results='hide', echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
 knitr::opts_chunk$set(fig.pos="h")
+
+library(knitcitations)
+cleanbib()
+options("citation_format" = "pandoc")
+
 library(covmat)
 library(xts)
 library(robust)
@@ -51,9 +46,13 @@ library(devtools)
 install_github("arorar/covmat")
 ```
 
+```{r doi, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+stambaugh <- "10.1016/S0304-405X(97)00020-2"
+```
+
 #Stambaugh Estimator
 
-Longer monthly return data series are often available from well-established companies. However, if we turn to newer companies this is often not the case. To calculate a covariance matrix for portfolio optimization we truncate the data to the largest available cross-section. This means discarding data. However, we can do better using a methodology proposed by Stambaugh [@Stambaugh1997].
+Longer monthly return data series are often available from well-established companies. However, if we turn to newer companies this is often not the case. To calculate a covariance matrix for portfolio optimization we truncate the data to the largest available cross-section. This means discarding data. However, we can do better using a methodology proposed by `r citep(stambaugh)`.
 
 ##Data
 
@@ -127,4 +126,6 @@ $\newline$
 Notice how classical method only suggests one borderline outlier for case 41. However, robust not only suggestes case 41 but also suggests 56 and 57 as outliers that may be further examined.
 
 #References
-
+```{r references, warning=FALSE, error=FALSE, message=FALSE, echo=FALSE}
+write.bibtex(file="references.bib")
+```
