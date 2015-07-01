@@ -2,8 +2,6 @@
 title: "Covariance Estimation"
 author: "Rohit Arora"
 date: "`r Sys.Date()`"
-header-includes:
-   - \usepackage{float}
 output: 
     rmarkdown::pdf_document:
         number_sections: true
@@ -12,8 +10,10 @@ output:
         fig_caption: yes
 fontsize: 12pt
 geometry: 
-    top=2cm, bottom=2cm, left=2cm, right=2cm
-    
+    top=3cm, bottom=2cm, left=3cm, right=3cm
+documentclass: article
+abstract:  There exists a rich modern set of covariance matrix estimator methods for use in financial data. The purpose of $\texttt{covmat}$ package is to implement some of these techniques such that they are readily available to be used with appropriate financial data. The purpose of this vignette is to demonstrate the usage of functions implemented in the $\texttt{covmat}$ package.
+
 references:
 - id: Stambaugh1997
   title: Analyzing investments whose histories differ in length
@@ -33,63 +33,98 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-```{r load_packages, include=FALSE}
+$\pagebreak$
+
+```{r load_packages, results='hide', echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
 knitr::opts_chunk$set(fig.pos="h")
 library(covmat)
 library(xts)
 library(robust)
+library(quantmod)
+```
+
+#Load Package
+
+The latest version of the $\texttt{covmat}$ package can be downloaded and installed through the following command:
+```{r load, eval=FALSE}
+library(devtools)
+install_github("arorar/covmat")
 ```
 
 #Stambaugh Estimator
 
-We will use hedge fund data with six funds. Notice how some columns have missing values. 
+Longer monthly return data series are often available from well-established companies. However, if we turn to newer companies this is often not the case. To calculate a covariance matrix for portfolio optimization we truncate the data to the largest available cross-section. This means discarding data. However, we can do better using a methodology proposed by Stambaugh [@Stambaugh1997].
 
-```{r load-data, echo=FALSE}
-data <- read.csv("../data/hfunds5.ue.ts.csv",header=TRUE)
-head(data,3)
+##Data
+
+Say that we have a portfolio of 5 tech stocks $\texttt{BABA, TWTR, LNKD, YHOO, GE}$  of which only 2 have a return history of 6 years, while the other 3 have been around for less than four years. 
+
+```{r load-data, echo=FALSE, cache=FALSE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
+
+symbols <- c('BABA', 'TWTR', 'LNKD', 'YHOO', 'GE')
+getSymbols(symbols, adjust=TRUE, from ="2010-04-01", to = "2015-05-31")
+
+for(symbol in symbols) {
+  temp0  <- temp <- adjustOHLC(get(symbol), symbol.name=symbol)
+  temp    <- to.monthly(temp0, indexAt='endof', drop.time=FALSE)
+  colnames(temp) <- colnames(temp0)    
+  assign(x=symbol, value=temp)
+}
+
+data <- do.call(merge, lapply(symbols, function(x) Cl(get(x))))
+colnames(data) <- symbols
+
 ```
 
-Lets start by visualizing the data to find out where we have missing values.
+Lets start by visualizing the data. Notice how some columns have missing values highlighted in red. In particular Alibaba and Twitter recently had thier IPO and have a large number of missing values. LinkedIn had its IPO in 2011 and has lesser missing values. While GE and Yahoo have all data and no missing values. 
 
-```{r visual-missing1}
-plotmissing(data,3)
-
-```
-\
-
-```{r visual-missing2}
+```{r visual-missing, echo=FALSE, fig.width=6, fig.height=4}
 plotmissing(data,4)
 
 ```
 \
 
-We can discard data and consider a truncated estimator for covariance but [@Stambaugh1997] proposed and interesting method to utilize all data and use cross sectional dependency in returns data to
-construct a more accurate covarince matrix.
 
-```{r prepare-fit-data, echo=FALSE}
-data <- xts(data[,-1],order.by=as.Date(data[,1]))
-data <- data[,-which(colnames(data) == "EVENT.1")]
+##Model Fitting
+To construct a valid covariance matrix we could truncate the data series making all of them about a year long and then calculate the sample covariance matrix. However, we can do better by using Stambaugh's method. Starting from the truncated sample covariance matrix, this technique produces improvements to the covariance matrix that utilizes all the available data along with using cross sectional dependency in returns data to construct a more accurate covarince matrix.
+
+Firstly, we will use the stambaugh.fit method to construct the covariance matrices. This method takes in data and the type of covariance matrix that needs to be estimated. Additional arguments can be passed for robust estimation.
+
+```{r, eval=FALSE}
+stambaugh.fit(R, style=c("classic","robust", "truncated"), ...)
 ```
 
-Let us fit both classical and roubst estimators of covariance using this methodology. We can use the method stambaugh.fit to construct the two covariance matrices.
+Let us compare a classical covariance matrix computed using Stambaugh's technique with a truncated classical covariance estimator.  
 
-```{r fit-model}
+```{r fit-model, warning=FALSE, error=FALSE, message=FALSE}
+models1 <- stambaugh.fit(data, style = c("classic", "truncated"))
+```
+
+$\newline$
+
+## Plots
+We can visually compare the covariances by examinging thier correlations using the ellipsis plot. Notice that the ellipses for truncated data are significnatly different from ellipses for estimates computed using Stambaugh's technique. The difference is more prominent for certain pairs such as LinkedIn and Alibaba or Twitter and GE where the sign of the correlation has completely reversed.
+
+```{r plot-ellipse, warning=FALSE, error=FALSE, message=FALSE, fig.width=10, fig.height=6}
+plot(models1,1)
+```
+\
+
+$\newline$
+
+We can also look at the distances of the individual stocks to examine the outliers for the same dataset.  Notice that we will do not use truncated models in this case for comparison as they have different data. Also we will pass a control parameter for robust covariance estimation. For outlier detection we need to evalute the tail probability for a Chi-Square distribution. We will set it to 97.5%. This is indicated by the dashed line on the plot.
+
+```{r plot-distance, warning=FALSE, error=FALSE, message=FALSE, fig.width=10, fig.height=5}
 cov.control <- covRob.control(estim="mcd",alpha=0.9)
-models <- stambaugh.fit(data, cov.control=cov.control)
-```
-
-We can visually compare the covariances by examinging thier ellipses
-```{r plot-ellipse}
-plot(models,1)
+models <- stambaugh.fit(data, style = c("classic", "robust"), 
+                        cov.control=cov.control)
+plot(models, 2, 0.975)
 ```
 \
 
-We can also look at the distances of the individual funds to examine the outliers
-```{r plot-distance}
-plot(models,2,0.975)
-```
-\
+$\newline$
 
+Notice how classical method only suggests one borderline outlier for case 41. However, robust not only suggestes case 41 but also suggests 56 and 57 as outliers that may be further examined.
 
 #References
 

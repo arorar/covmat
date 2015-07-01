@@ -41,7 +41,7 @@ stambaugh.est <- function(R,...) {
     resid <- do.call(cbind,lapply(fit$asset.fit,residuals))
      
     resid.cov <- if(robust) {
-       if(ncol(resid) == 1) fit$resid.variance 
+       if(ncol(resid) == 1) fit$resid.sd^2 
        else covRob(resid,estim = cov.estim, control = cov.control)$cov
     } else {
        cov(resid)
@@ -114,7 +114,7 @@ stambaugh.est <- function(R,...) {
           names(loc) <- colnames(temp.data)  
           as.matrix(loc)
       }
-      else as.matrix(covRob(data,estim = cov.estim, control = cov.control)$center)
+      else as.matrix(covRob(temp.data,estim = cov.estim, control = cov.control)$center)
   } else {
       as.matrix(apply(temp.data,2,mean))
   }
@@ -129,9 +129,9 @@ stambaugh.est <- function(R,...) {
   # extract a long block and a short block and let the basic routine do the job.
   # Feed its output to the next set of grouped columns
   
-  dist <- matrix(NA, nrow=nrow(data), ncol=1)
+  dist <- matrix(NA, nrow=nrow(data.m), ncol=1)
   rownames(dist) <- rownames(data.m)
-  rend <- ifelse(len  == 1, nrow(data), unique.sort.start[2]-1) 
+  rend <- ifelse(len  == 1, nrow(data.m), unique.sort.start[2]-1) 
   ind <- unique.sort.start[1]:rend
   dist[ind] <- sqrt(mahalanobis(x = cbind(temp.data)[ind,,drop=FALSE], 
                                 center = loc.est,cov= cov.est))
@@ -177,20 +177,22 @@ stambaugh.est <- function(R,...) {
 #' @param  R xts or matrix of asset returns
 #' @param  ... pass paramters to fitTimeSeriesFactorModel(factorAnalytics), 
 #' covRob, lmRob (Robust) functions
-#' @param style type of model to fit. Takes 2 values classic/robust
+#' @param style type of model to fit. Takes 3 values classic/robust/truncated
 #' @author Rohit Arora
 #' @export
 #' 
 #' 
-stambaugh.fit <- function(R, style=c("classic","robust"), ...) {
+stambaugh.fit <- function(R, style=c("classic","robust", "truncated"), ...) {
     
+    if(length(style) > 2) stop("Can fit atmost 2 models")
+  
     model.classic <- model.robust <- NULL; .data <- NULL
     
     add.args <- list(...)
     if("fit.method" %in% names(add.args)) add.args["fit.method"] <- NULL
            
     if("classic" %in% style) {
-        args <- list(R=data, fit.method="LS")
+        args <- list(R=R, fit.method="LS")
         args <- merge.list(args,add.args)
         classic <- do.call(stambaugh.est,args)
         .data <- classic$data
@@ -200,7 +202,7 @@ stambaugh.fit <- function(R, style=c("classic","robust"), ...) {
     }
     
     if("robust" %in% style) {
-        args <- list(R=data, fit.method="Robust")
+        args <- list(R=R, fit.method="Robust")
         args <- merge.list(args,add.args)
         robust <- do.call(stambaugh.est,args)        
         .data <- robust$data
@@ -209,8 +211,27 @@ stambaugh.fit <- function(R, style=c("classic","robust"), ...) {
                         robust.params = robust$robust.params, type="Robust")
         model.robust <-  list(Robust=.Robust)    
     }
+    
+    if("truncated" %in% style) {
+      args <- list(R=na.omit(R), fit.method="LS")
+      args <- merge.list(args,add.args)
+      trunc <- do.call(stambaugh.est,args)        
+      .data <- trunc$data
+      .Trunc <- list(center = trunc$loc,cov = trunc$cov,
+                      dist = trunc$dist, corr = FALSE, type="Classical")
+      model.trunc <-  list(Truncated=.Trunc)    
+    }
 
-    model.list <- merge.list(model.classic,model.robust)
+    model.list <- if (all(style %in% c("classic","robust")))
+      merge.list(model.classic,model.robust)
+    else if (all(style %in% c("classic","truncated")))
+      merge.list(model.classic, model.trunc)
+    else if (all(style %in% c("robust","truncated")))
+      merge.list(model.robust, model.trunc)
+    else if (style == "classic") model.classic
+    else if (style == "robust") model.robust
+    else if (style == "truncated") model.trunc
+    
     model.list <- list(models = model.list,data = .data)
     
     class(model.list) <- "stambaugh"
