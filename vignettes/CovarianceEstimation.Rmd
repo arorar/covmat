@@ -126,6 +126,6 @@ $\newline$
 Notice how classical method only suggests one borderline outlier for case 41. However, robust not only suggestes case 41 but also suggests 56 and 57 as outliers that may be further examined.
 
 #References
-```{r references, warning=FALSE, error=FALSE, message=FALSE, echo=FALSE}
+```{r references, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, echo=FALSE}
 write.bibtex(file="references.bib")
 ```

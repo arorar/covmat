@@ -184,7 +184,9 @@ stambaugh.est <- function(R,...) {
 #' 
 stambaugh.fit <- function(R, style=c("classic","robust", "truncated"), ...) {
     
+    if(is.null(nrow(R)) || is.null(ncol(R))) stop("Invalid data")
     if(length(style) > 2) stop("Can fit atmost 2 models")
+    if(!all(style %in% c("classic","robust", "truncated"))) stop("Invalid model")
   
     model.classic <- model.robust <- NULL; .data <- NULL
     
@@ -355,11 +357,13 @@ stambaugh.distance.plot <- function(model, level=0.975) {
 #' @export
 #' 
 plot.stambaugh <- function(x, which=c(1,2),...) {
-  
+      
     n <- length(x$models)
     if (n != 2 && which[1] == 1) stop("2 models needed for ellipse plot")
         
     which <- which[1]
+    
+    if(!which %in% c(1,2)) stop("Unknown plot selected")
 
     if (which == 1) stambaugh.ellipse.plot(x)
     if (which == 2) stambaugh.distance.plot(x,...)

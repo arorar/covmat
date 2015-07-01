@@ -11,6 +11,7 @@ License: Artistic-2.0
 Suggests: knitr
 VignetteBuilder: knitr
 LazyLoad: yes
+Suggets: testthat
 Imports: 
   factorAnalytics,
   zoo,
