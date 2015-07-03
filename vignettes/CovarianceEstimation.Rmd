@@ -34,7 +34,6 @@ options("citation_format" = "pandoc")
 library(covmat)
 library(xts)
 library(robust)
-library(quantmod)
 ```
 
 #Load Package
@@ -46,83 +45,167 @@ install_github("arorar/covmat")
 ```
 
 ```{r doi, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
-stambaugh <- "10.1016/S0304-405X(97)00020-2"
+#stambaugh <- "10.1016/S0304-405X(97)00020-2"
+#fmmc <- "10.2139/ssrn.2295602"
+bib <- read.bibtex("references.bib")
 ```
 
 #Stambaugh Estimator
 
-Longer monthly return data series are often available from well-established companies. However, if we turn to newer companies this is often not the case. To calculate a covariance matrix for portfolio optimization we truncate the data to the largest available cross-section. This means discarding data. However, we can do better using a methodology proposed by `r citep(stambaugh)`.
+Longer monthly return data series are often available from well-established companies. However, if we turn to newer companies we run into the problem of unequal histories where newer companies have shorter return histories. To calculate a covariance matrix for portfolio optimization with assets having unequal histories we can naively truncate the data to the largest available cross-section. This means discarding data. However, we can do better with using all available data for all assets using a methodology proposed by `r citep(bib[["Stambaugh_1997"]])`.
 
 ##Data
 
-Say that we have a portfolio of 5 tech stocks $\texttt{BABA, TWTR, LNKD, YHOO, GE}$  of which only 2 have a return history of 6 years, while the other 3 have been around for less than four years. 
+Say that we have a portfolio of 4 tech stocks $\texttt{TWTR, LNKD, V, YHOO, GE}$  of which only 2 have a return history of 6 years, while the other 3 have been around for less than four years. 
 
 ```{r load-data, echo=FALSE, cache=FALSE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
 
-symbols <- c('BABA', 'TWTR', 'LNKD', 'YHOO', 'GE')
-getSymbols(symbols, adjust=TRUE, from ="2010-04-01", to = "2015-05-31")
-
-for(symbol in symbols) {
-  temp0  <- temp <- adjustOHLC(get(symbol), symbol.name=symbol)
-  temp    <- to.monthly(temp0, indexAt='endof', drop.time=FALSE)
-  colnames(temp) <- colnames(temp0)    
-  assign(x=symbol, value=temp)
-}
-
-data <- do.call(merge, lapply(symbols, function(x) Cl(get(x))))
-colnames(data) <- symbols
+data("returnsdata")
+symbols <- c('TWTR', 'LNKD', 'V', 'YHOO', 'GE')
+symdata <- symdata["2007-04-01/2014-12-31",symbols]
 
 ```
 
-Lets start by visualizing the data. Notice how some columns have missing values highlighted in red. In particular Alibaba and Twitter recently had thier IPO and have a large number of missing values. LinkedIn had its IPO in 2011 and has lesser missing values. While GE and Yahoo have all data and no missing values. 
+Lets start by visualizing the data. We can use the $\texttt{plotmissing}$ function to do this. The second parameter of this function allows us to choose how we want to visualize the data. A value of 3 suggests a time series plot and 4 suggests a matrix plot. 
 
-```{r visual-missing, echo=FALSE, fig.width=6, fig.height=4}
-plotmissing(data,4)
+```{r, eval=FALSE}
+plotmissing(data, which=c(3,4))
+```
+
+We will choose to visualize the timeseries in this case
+
+
+```{r visual-missing, echo=FALSE, fig.width=10, fig.height=6}
+plotmissing(symdata, 3)
 
 ```
 \
 
+$\newline$
 
-##Model Fitting
-To construct a valid covariance matrix we could truncate the data series making all of them about a year long and then calculate the sample covariance matrix. However, we can do better by using Stambaugh's method. Starting from the truncated sample covariance matrix, this technique produces improvements to the covariance matrix that utilizes all the available data along with using cross sectional dependency in returns data to construct a more accurate covarince matrix.
+Notice how some return series have missing values and shorter lengths compared to other series. In particular Twitter recently had its IPO and has a large number of missing values. LinkedIn had its IPO in 2011 and has lesser missing values. While GE and Yahoo have complete data histories and no missing values for the period under consideration.
 
-Firstly, we will use the stambaugh.fit method to construct the covariance matrices. This method takes in data and the type of covariance matrix that needs to be estimated. Additional arguments can be passed for robust estimation.
+
+##Covariance estimation
+To construct a valid covariance matrix we could truncate the data series making all of them about a year long and then calculate the sample covariance matrix. However, we can do better by using Stambaugh's method. Starting from the truncated sample covariance matrix, this technique produces improvements to the covariance matrix that utilizes all the available data along with using cross sectional dependency in returns data to construct a more accurate covariance matrix.
+
+Firstly, we will use the $\texttt{stambaugh.fit}$ function to construct the covariance matrices. This function takes in data and the type of covariance matrix that needs to be estimated. Additional arguments can be passed for robust estimation.
 
 ```{r, eval=FALSE}
-stambaugh.fit(R, style=c("classic","robust", "truncated"), ...)
+stambaugh.fit(R, method=c("classic","robust", "truncated"), ...)
 ```
 
 Let us compare a classical covariance matrix computed using Stambaugh's technique with a truncated classical covariance estimator.  
 
 ```{r fit-model, warning=FALSE, error=FALSE, message=FALSE}
-models1 <- stambaugh.fit(data, style = c("classic", "truncated"))
+models1 <- stambaugh.fit(symdata, method = c("classic", "truncated"))
 ```
 
-$\newline$
-
 ## Plots
-We can visually compare the covariances by examinging thier correlations using the ellipsis plot. Notice that the ellipses for truncated data are significnatly different from ellipses for estimates computed using Stambaugh's technique. The difference is more prominent for certain pairs such as LinkedIn and Alibaba or Twitter and GE where the sign of the correlation has completely reversed.
 
-```{r plot-ellipse, warning=FALSE, error=FALSE, message=FALSE, fig.width=10, fig.height=6}
+We can construct two types of plots, an ellipses plot and a distance plot. Each can be separately invoked using the same $\texttt{plot}$ function but a separate $\texttt{which}$ parameter.
+
+```{r, eval=FALSE}
+plot(data, which=c(1,2))
+```
+
+We can visually compare the covariances by examining their correlations using the ellipses plot. The ellipses are contours of standard bivariate normals overlayed for each model. Notice that the ellipses for truncated data can be significantly different from ellipses for covariance estimates computed using Stambaugh's technique. The difference is very prominent for certain pairs such as LinkedIn and GE where the sign of the correlation has completely reversed.
+
+
+```{r plot-ellipse1, warning=FALSE, error=FALSE, message=FALSE, fig.width=10, fig.height=6}
 plot(models1,1)
 ```
 \
 
-$\newline$
+We will also compare the covariances of Stambaugh and Robust Stambaugh methods. Once again notice how the ellipses of Twitter and GE are significantly different.
 
-We can also look at the distances of the individual stocks to examine the outliers for the same dataset.  Notice that we will do not use truncated models in this case for comparison as they have different data. Also we will pass a control parameter for robust covariance estimation. For outlier detection we need to evalute the tail probability for a Chi-Square distribution. We will set it to 97.5%. This is indicated by the dashed line on the plot.
-
-```{r plot-distance, warning=FALSE, error=FALSE, message=FALSE, fig.width=10, fig.height=5}
+```{r plot-ellipse2, warning=FALSE, error=FALSE, message=FALSE, fig.width=10, fig.height=6}
 cov.control <- covRob.control(estim="mcd",alpha=0.9)
-models <- stambaugh.fit(data, style = c("classic", "robust"), 
+models <- stambaugh.fit(symdata, method = c("classic", "robust"), 
                         cov.control=cov.control)
+plot(models, 1)
+```
+\
+
+We can also look at the distances of the individual stocks to examine the outliers for the same dataset.  Notice that we will not use truncated models in this case for comparison as they have different data. Also we will pass a control parameter for robust covariance estimation. For outlier detection we need to evaluate the tail probability for a Chi-Square distribution. We will set it to 97.5%. This is indicated by the dashed line on the plot.
+
+
+```{r plot-distance, warning=FALSE, error=FALSE, message=FALSE, fig.width=10, fig.height=5.5}
+
 plot(models, 2, 0.975)
+
 ```
 \
 
 $\newline$
 
-Notice how classical method only suggests one borderline outlier for case 41. However, robust not only suggestes case 41 but also suggests 56 and 57 as outliers that may be further examined.
+Notice how classical method suggests fewer outliers compared to Robust method. All outliers indicated by Classical method are also suggested as an outlier by the Robust method. Additional outliers indicated by the Robust method may be further examined.
+
+# FMMC estimator
+
+A different approach to the problem of computing estimates for unequal return histories was proposed by `r citep(bib[["Jiang2013"]])`. In this case we use longer factor histories of many risk factors and and choose a subset to construct a risk model for the asset returns. We can then simulate from such a risk model to construct longer return histories and use them to construct more accurate measure of covariance. 
+
+##Data
+
+For factors we will use the 5 factor model `r citep(bib[["Fama2014"]])`. The five factor time series model tries to capture the market effect, size effect, value effect, profitability effect, and investment quality effect for a stock. In addition to the five factors we will also include the momentum factor as proposed in `r citep(bib[["Carhart1997"]])`. All data for the factors is publicly available on Kenneth French's website.[^1]
+
+In addition to these we will also add a liquidity factor proposed in `r citep(bib[["Pastor2003"]])`. Data for which is freely available on Pastor's website.[^2]
+
+We will also add a volatility factor by constructing the first order difference in VIX.
+
+[^1]: http://mba.tuck.dartmouth.edu/pages/faculty/ken.french/
+[^2]: http://faculty.chicagobooth.edu/lubos.pastor/research/
+
+The factor data and symbol data is stored in the package and can be loaded as follows
+
+```{r load-data-fmmc, cache=FALSE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
+
+data("returnsdata")
+data("factordata")
+
+```
+
+Let us consider a portfolio of 3 stocks $\texttt{LNKD, V, LAZ}$  all of which have different return histories. We need to align these series to the monthly factor data. The alignment can be done as follows
+
+```{r align, cache=FALSE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
+symbols <- c('LNKD', 'V', 'LAZ')
+symdata <- symdata["2007-04-01/2014-12-31",symbols]
+
+dates.sym.monthly <- format(index(symdata), "%Y%m")
+dates.factors.monthly <- format(index(factor.data), "%Y%m")
+index(symdata) <- index(factor.data)[which(dates.factors.monthly 
+                                           %in% dates.sym.monthly)]
+
+```
+
+##Covariance estimation
+
+To construct the covariance matrix we will use the $\texttt{fmmc.cov}$ function. This function takes an xts object of return series, an xts object of factor series and an align parameter. We emphasize that the simulated returns from different asset returns although longer are still unequal in length. The align parameter can be used to truncate data from the beginning or end to align all longer histories to the same length. 
+
+```{r, eval=FALSE}
+fmmc.cov(R, factors, robust = FALSE, parallel = TRUE, 
+                    align=c("end", "begin"), ...)
+   
+```
+
+We can construct the covariance matrix as follows. Additional arguments can be passed to construct a robust covariance matrix. Notice that the parallel flag is turned on because FMMC is an embarrassingly parallel problem. Longer histories for each asset can be computed at the same time using all available cores of the CPU.
+
+```{r FMMC, warning=FALSE, error=FALSE, message=FALSE}
+
+rets <- fmmc.cov(symdata, factor.data, parallel = FALSE)
+
+```
+
+## Plots
+We can also compare the performace of FMMC with the naive approach of constructing covariance estimates based on truncated data. Notice how FMMC estimates give a significantly different result from trucnated estimates for Lazard and Visa.
+
+```{r fmmc-plot, , fig.width=10, fig.height=6}
+
+compare.cov(cov(rets),cov(na.omit(symdata)),c("FMMC","Truncated"))
+
+```
+\
+
 
 #References
 ```{r references, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, echo=FALSE}

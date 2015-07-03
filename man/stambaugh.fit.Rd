@@ -5,15 +5,15 @@
 \title{Estimate covariance matrices using Stambaugh method for classical and Robust
 methods}
 \usage{
-stambaugh.fit(R, style = c("classic", "robust", "truncated"), ...)
+stambaugh.fit(R, method = c("classic", "robust", "truncated"), ...)
 }
 \arguments{
 \item{R}{xts or matrix of asset returns}
 
-\item{style}{type of model to fit. Takes 3 values classic/robust/truncated}
-
 \item{...}{pass paramters to fitTimeSeriesFactorModel(factorAnalytics),
 covRob, lmRob (Robust) functions}
+
+\item{style}{type of model to fit. Takes 3 values classic/robust/truncated}
 }
 \description{
 Estimate covariance matrices using Stambaugh method for classical and Robust

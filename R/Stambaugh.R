@@ -182,28 +182,28 @@ stambaugh.est <- function(R,...) {
 #' @export
 #' 
 #' 
-stambaugh.fit <- function(R, style=c("classic","robust", "truncated"), ...) {
+stambaugh.fit <- function(R, method=c("classic","robust", "truncated"), ...) {
     
     if(is.null(nrow(R)) || is.null(ncol(R))) stop("Invalid data")
-    if(length(style) > 2) stop("Can fit atmost 2 models")
-    if(!all(style %in% c("classic","robust", "truncated"))) stop("Invalid model")
+    if(length(method) > 2) stop("Can fit atmost 2 models")
+    if(!all(method %in% c("classic","robust", "truncated"))) stop("Invalid model")
   
     model.classic <- model.robust <- NULL; .data <- NULL
     
     add.args <- list(...)
     if("fit.method" %in% names(add.args)) add.args["fit.method"] <- NULL
            
-    if("classic" %in% style) {
+    if("classic" %in% method) {
         args <- list(R=R, fit.method="LS")
         args <- merge.list(args,add.args)
         classic <- do.call(stambaugh.est,args)
         .data <- classic$data
         .Classical <- list(center = classic$loc, cov = classic$cov, 
                            dist = classic$dist,corr = FALSE, type="Classical")
-        model.classic <- list(Classical=.Classical)
+        model.classic <- list(Stambaugh=.Classical)
     }
     
-    if("robust" %in% style) {
+    if("robust" %in% method) {
         args <- list(R=R, fit.method="Robust")
         args <- merge.list(args,add.args)
         robust <- do.call(stambaugh.est,args)        
@@ -211,10 +211,10 @@ stambaugh.fit <- function(R, style=c("classic","robust", "truncated"), ...) {
         .Robust <- list(center = robust$loc,cov = robust$cov,
                         dist = robust$dist, corr = FALSE, 
                         robust.params = robust$robust.params, type="Robust")
-        model.robust <-  list(Robust=.Robust)    
+        model.robust <-  list("Robust Stambaugh"=.Robust)    
     }
     
-    if("truncated" %in% style) {
+    if("truncated" %in% method) {
       args <- list(R=na.omit(R), fit.method="LS")
       args <- merge.list(args,add.args)
       trunc <- do.call(stambaugh.est,args)        
@@ -224,15 +224,15 @@ stambaugh.fit <- function(R, style=c("classic","robust", "truncated"), ...) {
       model.trunc <-  list(Truncated=.Trunc)    
     }
 
-    model.list <- if (all(style %in% c("classic","robust")))
+    model.list <- if (all(method %in% c("classic","robust")))
       merge.list(model.classic,model.robust)
-    else if (all(style %in% c("classic","truncated")))
+    else if (all(method %in% c("classic","truncated")))
       merge.list(model.classic, model.trunc)
-    else if (all(style %in% c("robust","truncated")))
+    else if (all(method %in% c("robust","truncated")))
       merge.list(model.robust, model.trunc)
-    else if (style == "classic") model.classic
-    else if (style == "robust") model.robust
-    else if (style == "truncated") model.trunc
+    else if (method == "classic") model.classic
+    else if (method == "robust") model.robust
+    else if (method == "truncated") model.trunc
     
     model.list <- list(models = model.list,data = .data)
     
@@ -317,7 +317,7 @@ stambaugh.distance.plot <- function(model, level=0.975) {
     colnames(df) <- c("Type","Distance","Outlier","Date"); rownames(df) <- NULL
     
     p <- ggplot(data=df, aes_string(x='Date',y='Distance')) + 
-        geom_point(aes_string(size='Distance', col='Type', shape='Type')) + 
+        geom_point(aes_string(col='Type', shape='Type')) + 
         facet_grid(~Type) + geom_text(aes_string(label='Outlier'),hjust=1, vjust=1) +
         xlab("Date") + 
         ylab("Square Root of Mahalanobis Distance") + 
@@ -378,7 +378,7 @@ plot.stambaugh <- function(x, which=c(1,2),...) {
 #' 
 #' @param  data an xts/zoo object
 #' @param  which takes values 3/4. 3 = Summary plot, 4 = Matrix plot
-#' @import VIM
+#' @import VIM reshape2
 #' @author Rohit Arora
 #' @export
 #' 

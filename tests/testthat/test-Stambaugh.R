@@ -4,7 +4,7 @@ symCount <- length(symbols)
 data("returnsdata")
 
 symdata <- symdata["2007-04-01/", symbols]
-models  <- stambaugh.fit(symdata, style = c("classic", "truncated"))
+models  <- stambaugh.fit(symdata, method = c("classic", "truncated"))
 
 #expect 2 models
 expect_equal(length(models), 2)
@@ -13,14 +13,14 @@ expect_equal(length(models), 2)
 expect_is(models, "stambaugh")
 
 #dimension check for location
-expect_equal(nrow(models$models$Classical$center), symCount)
+expect_equal(nrow(models$models$Stambaugh$center), symCount)
 expect_equal(nrow(models$models$Truncated$center), symCount)
 
 #dimension check for covariance
-expect_equal(nrow(models$models$Classical$cov), symCount)
-expect_equal(ncol(models$models$Classical$cov), symCount)
-expect_equal(nrow(models$models$Classical$cov), symCount)
-expect_equal(ncol(models$models$Classical$cov), symCount)
+expect_equal(nrow(models$models$Stambaugh$cov), symCount)
+expect_equal(ncol(models$models$Stambaugh$cov), symCount)
+expect_equal(nrow(models$models$Stambaugh$cov), symCount)
+expect_equal(ncol(models$models$Stambaugh$cov), symCount)
 
 #model type check
 expect_equal(models$models$Truncated$type, "Classical")
@@ -30,10 +30,10 @@ expect_equal(models$models$Truncated$type, "Classical")
 expect_error(stambaugh.fit(data))
 
 # invalid data object
-expect_error(stambaugh.fit(c(), style = c("classic", "truncated")))
+expect_error(stambaugh.fit(c(), method = c("classic", "truncated")))
 
-# invalid style
-expect_error(stambaugh.fit(data, style = c("class", "truncated")))
+# invalid method
+expect_error(stambaugh.fit(data, method = c("class", "truncated")))
 
 # invalid plot option
 expect_error(plot.stambaugh(models,5))

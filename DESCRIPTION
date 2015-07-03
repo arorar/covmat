@@ -21,5 +21,6 @@ Imports:
   VIM, 
   ggplot2,
   knitcitations, 
-  quantmod
+  quantmod,
+  reshape2
 NeedsCompilation: yes
