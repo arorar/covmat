@@ -1,23 +1,10 @@
-library(xts)
-library(robust)
-library(quantmod)
-
 symbols <- c('BABA', 'TWTR', 'LNKD', 'YHOO', 'GE')
 symCount <- length(symbols)
 
-getSymbols(symbols, adjust=TRUE, from ="2010-04-01", to = "2015-05-31")
+data("returnsdata")
 
-for(symbol in symbols) {
-  temp0  <- temp <- adjustOHLC(get(symbol), symbol.name=symbol)
-  temp    <- to.monthly(temp0, indexAt='endof', drop.time=FALSE)
-  colnames(temp) <- colnames(temp0)    
-  assign(x=symbol, value=temp)
-}
-
-data <- do.call(merge, lapply(symbols, function(x) Cl(get(x))))
-colnames(data) <- symbols
-
-models <- stambaugh.fit(data, style = c("classic", "truncated"))
+symdata <- symdata["2007-04-01/", symbols]
+models  <- stambaugh.fit(symdata, style = c("classic", "truncated"))
 
 #expect 2 models
 expect_equal(length(models), 2)
