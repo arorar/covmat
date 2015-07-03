@@ -7,7 +7,7 @@
 plotmissing(data, which = c(3, 4))
 }
 \arguments{
-\item{data}{a matrix, data-frame or an xts/zoo object}
+\item{data}{an xts/zoo object}
 
 \item{which}{takes values 3/4. 3 = Summary plot, 4 = Matrix plot}
 }
@@ -15,8 +15,9 @@ plotmissing(data, which = c(3, 4))
 Plot data to visualize missing values
 }
 \details{
-This method takes in data as a matrix,data frame or an xts object and
-plots summary or matrix plots for data. Missing values highlighted in red.
+This method takes in data as an xts object and plots the data.
+Missing values highlighted in red for matrix plot and time series of returns
+are shown in in Summary plot
 }
 \author{
 Rohit Arora

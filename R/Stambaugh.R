@@ -372,10 +372,11 @@ plot.stambaugh <- function(x, which=c(1,2),...) {
 #' Plot data to visualize missing values
 #' 
 #' @details
-#' This method takes in data as a matrix,data frame or an xts object and 
-#' plots summary or matrix plots for data. Missing values highlighted in red. 
+#' This method takes in data as an xts object and plots the data. 
+#' Missing values highlighted in red for matrix plot and time series of returns 
+#' are shown in in Summary plot
 #' 
-#' @param  data a matrix, data-frame or an xts/zoo object
+#' @param  data an xts/zoo object
 #' @param  which takes values 3/4. 3 = Summary plot, 4 = Matrix plot
 #' @import VIM
 #' @author Rohit Arora
@@ -383,23 +384,40 @@ plot.stambaugh <- function(x, which=c(1,2),...) {
 #' 
 #' 
 plotmissing <- function(data, which=c(3,4)) {
-    
-    data <- coredata(data); cols <- colnames(data)
+    cols <- colnames(data)
     if (length(cols) == 0) stop("Data should have column names")
-    
-    if(class(data) == "data.frame") cols <- cols[unlist(lapply(data, is.numeric))]
-    data <- data[, cols]
-    colnames(data) <- sapply(cols, function(name) substr(name,1,9))
-    
+  
     which <- which[1]
     
-    if (which == 3)  
-        aggr(data, prop=FALSE,numbers=TRUE, varheight=TRUE, combined=TRUE)
+    options(warn=-1)
     
-    if(which == 4)  {
-        options(warn=-1)
-        matrixplot(data, main="Location of Missing values")
-        options(warn=0)
+    if (which == 3)  {
+      ind <- which.min(apply(is.na(data),  2, which.min))
+      dates <- index(data[,ind])
+      
+      d <- melt(coredata(data)); colnames(d) <- c("Index","Symbol","Returns")
+      symCount <- ncol(data)
+      
+      ind <- head(floor(seq(1,nrow(data),length.out = 5)),-1)
+      
+      p <- ggplot(data=d, aes(x=Index,y=Returns,colour=Symbol,group=Symbol)) + 
+        geom_line() + 
+        xlab("Dates") + ylab("Returns") +
+        scale_x_discrete(breaks = ind, labels=format(dates[ind],"%Y")) +
+        facet_wrap(~Symbol, ncol=round(sqrt(symCount)), scales = "free_x")
+      
+      print(p)
     }
+        
+    if(which == 4)  {
+      data <- coredata(data)
+      
+      if(class(data) == "data.frame") cols <- cols[unlist(lapply(data, is.numeric))]
+      data <- data[, cols]
+      colnames(data) <- sapply(cols, function(name) substr(name,1,9))
+      matrixplot(data, main="Location of Missing values")
+    }
+    
+    options(warn=0)
 }
 
