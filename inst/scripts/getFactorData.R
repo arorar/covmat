@@ -2,7 +2,9 @@ rm(list = ls())
 
 library(quantmod)
 
-#' Function to download factor data for fmmc
+#' Function to download factor data. This is a utility function and can be used
+#' to update factor data in the data folder for the package. After executing the
+#' function store the factor.data object in the data folder.
 #' 
 #' @details
 #' This method downloads monthly data for factors that can be used for FMMC. FMMC needs
