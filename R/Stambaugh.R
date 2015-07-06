@@ -8,7 +8,7 @@
 #' 
 #' @param  R xts or matrix of asset returns
 #' @param  ... allows passing additional paramters
-#' @import factorAnalytics RCurl robust robustbase xts zoo
+#' @import factorAnalytics RCurl robust robustbase xts zoo CerioliOutlierDetection
 #' @author Rohit Arora
 #' @export
 #' 
@@ -29,7 +29,8 @@ stambaugh.est <- function(R,...) {
     .data <- na.omit(cbind(trunc.long,short))
     
     add.args <- as.list(substitute(list(...)))[-1L]
-    if("cov.control" %in% names(add.args)) add.args[["cov.control"]] <- NULL
+    if(add.args$fit.method == "LS" && 
+       "control" %in% names(add.args)) add.args[["control"]] <- NULL
     
     args <- list(asset.names=colnames(short), 
                  factor.names=colnames(trunc.long), data=.data)
@@ -42,7 +43,7 @@ stambaugh.est <- function(R,...) {
      
     resid.cov <- if(robust) {
        if(ncol(resid) == 1) fit$resid.sd^2 
-       else covRob(resid,estim = cov.estim, control = cov.control)$cov
+       else cerioli2010.fsrmcd.test(resid, mcd.alpha = mcd.alpha)$sigma.hat.rw
     } else {
        cov(resid)
     }
@@ -74,10 +75,15 @@ stambaugh.est <- function(R,...) {
                    ifelse(add.args$fit.method == "Robust",TRUE, FALSE),
                    FALSE)
   
-  cov.estim <- "mcd"; cov.control <- covRob.control("mcd")
-  if("estim" %in% names(add.args)) cov.estim <- add.args[["estim"]]
-  if("cov.control" %in% names(add.args)) cov.control <- add.args[["cov.control"]]
-  
+  cov.estim <- "mcd"; control <- covRob.control("mcd")
+  if(robust) {
+    if("estim" %in% names(add.args)) 
+      cov.estim <- add.args[["estim"]] else  add.args[["estim"]] <- cov.estim
+    if("control" %in% names(add.args)) 
+      control <- add.args[["control"]] else add.args[["control"]] <- control
+    mcd.alpha <- control$alpha  
+  }
+
   # Idea is to sort columns from maximum to minum data. Apply the long-short
   # routine and use its estimate for the next step. In the next step use the
   # the previously computed covariance estimate as estimate for long data and
@@ -108,33 +114,30 @@ stambaugh.est <- function(R,...) {
   # start by computing the mean and covariance of longest columns that have the same len
   temp.data <- data.sort[,1:cum.sort.count[1],drop=FALSE]
   
+  val <- NULL
+  if(robust && ncol(temp.data) > 1) 
+    val <- cerioli2010.fsrmcd.test(temp.data, mcd.alpha = mcd.alpha)
+  
   loc.est <- if(robust) { 
       if(ncol(temp.data)==1) { 
           loc <- as.numeric(coef(lmRob(temp.data ~ 1)))
           names(loc) <- colnames(temp.data)  
           as.matrix(loc)
       }
-      else as.matrix(covRob(temp.data,estim = cov.estim, control = cov.control)$center)
+      else as.matrix(val$mu.hat.rw)
   } else {
       as.matrix(apply(temp.data,2,mean))
   }
   
   cov.est <- if(robust) {
       if(ncol(temp.data) == 1) scaleTau2(temp.data)^2 
-      else covRob(temp.data, estim = cov.estim, control = cov.control)$cov
+      else val$sigma.hat.rw
   } else {
       cov(temp.data)
   } 
   
   # extract a long block and a short block and let the basic routine do the job.
   # Feed its output to the next set of grouped columns
-  
-  dist <- matrix(NA, nrow=nrow(data.m), ncol=1)
-  rownames(dist) <- rownames(data.m)
-  rend <- ifelse(len  == 1, nrow(data.m), unique.sort.start[2]-1) 
-  ind <- unique.sort.start[1]:rend
-  dist[ind] <- sqrt(mahalanobis(x = cbind(temp.data)[ind,,drop=FALSE], 
-                                center = loc.est,cov= cov.est))
   
   for (j in 1:(len-1)) {
     
@@ -145,13 +148,8 @@ stambaugh.est <- function(R,...) {
     start <- (1 + end); end <- cum.sort.count[j+1]
     short <- data.sort[,start:end,drop=FALSE]
     
-    est <- covariance.est(long, short, loc.est, cov.est, ...)
+    est <- covariance.est(long, short, loc.est, cov.est, add.args)
     loc.est <- est$loc; cov.est <- est$cov
-    
-    rend <- ifelse(j == (len -1), nrow(data.sort), unique.sort.start[j+2]-1) 
-    ind <- unique.sort.start[j+1]:rend
-    dist[ind] <- sqrt(mahalanobis(x = data.sort[ind,1:end], 
-                                    center = loc.est,cov= cov.est))
   }
   
   # lets re-arrange back to return in the user-supplied order
@@ -162,8 +160,8 @@ stambaugh.est <- function(R,...) {
   colnames(cov.est) <- col.names
   rownames(cov.est) <- col.names
 
-  list(data = data.m, loc = loc.est, cov = cov.est, dist = dist, 
-       robust.params = list(control =  cov.control))
+  list(data = data.m, loc = loc.est, cov = cov.est, 
+       robust.params = list(control =  control))
 }
 
 #' Estimate covariance matrices using Stambaugh method for classical and Robust
@@ -259,6 +257,73 @@ stambaugh.ellipse.plot <- function(models) {
   plot.covfm(.models, which.plots = 4)
 }
 
+#' An internal function that is used to calculate the Mahalanobis distance
+#' 
+#' @details
+#' The function takes in the model, data and the significance level and calculated
+#' the critical values and the Mahalanobis distance.
+#' 
+#' @param  data data used to fit the covariance
+#' @param confidence level for the test
+#' @param  model fitted models for covariance
+#' @param  id.n number of outliers to show
+#' @author Rohit Arora
+#' 
+#' 
+.stambaugh.dist <- function(data, model, level, id.n=10) {
+  
+  start <- apply(data, 2,function(col) which.min(is.na(col)))
+  freq.tab <- data.frame(table(start)); 
+  freq.tab$start <- as.numeric(levels(freq.tab$start))
+  x.thresh <- c(freq.tab$start - 1 , nrow(data))
+  
+  cum.sort.count   <- cumsum(freq.tab$Freq)
+  levels <- sapply(1:nrow(freq.tab), function(j) 
+    sqrt(qchisq(1 - level, df=cum.sort.count[j],lower.tail=FALSE)))
+  y.thresh <- levels
+  
+  outlier <- dist <- matrix(NA, nrow=nrow(data), ncol = 1)
+  rownames(outlier) <- rownames(dist) <- rownames(data)
+  
+  for (i in 1:(length(x.thresh)-1))  {
+    new.start <- freq.tab$start[i]
+    new.end <- ifelse(i != length(freq.tab$start), 
+                      freq.tab$start[i+1] -1, nrow(data))
+    symdata <- coredata(data[, which(start <= new.start),drop=FALSE])
+
+    if(model$type == "Classical") {
+      fit <- stambaugh.fit(symdata, method = "classic")
+      symdata <- data[new.start:new.end, which(start <= new.start),drop=FALSE]
+      dist[new.start:new.end] <- sqrt(mahalanobis(x = symdata, 
+                                          center = fit$models$Stambaugh$center,
+                                          cov= fit$models$Stambaugh$cov))
+      new.start <- x.thresh[i] + 1; new.end <- x.thresh[i+1] 
+      out <- new.start - 1 + which(dist[new.start:new.end] > y.thresh[i])
+    }
+    else if (model$type == "Robust") {
+      control <- model$robust.params$control
+      fit <- stambaugh.fit(symdata, method = "robust", control= control)
+      symdata <- data[new.start:new.end, which(start <= new.start),drop=FALSE]
+      dist[new.start:new.end] <- sqrt(mahalanobis(x = symdata, 
+                              center = fit$models$`Robust Stambaugh`$center,
+                              cov= fit$models$`Robust Stambaugh`$cov))
+      
+      val <- cerioli2010.fsrmcd.test(symdata, signif.alpha=1-level, 
+                                     mcd.alpha = control$alpha )
+      cval <- sqrt(val$critvalfcn(1-level))
+      y.thresh[i] <- min(cval)
+      out <- new.start - 1 + which(dist[new.start:new.end] > cval)
+    }
+    
+    temp.n <- ifelse(length(out) > id.n, id.n, length(out))
+    out <- out[order(dist[out], decreasing = TRUE)][1:temp.n]
+    outlier[out] <- out
+  }
+  
+  y.thresh <- c(y.thresh,tail(y.thresh,1))
+  list(dist=dist, outlier=outlier, x.thresh=x.thresh, y.thresh=y.thresh)
+}
+
 #' Compute Mahalanobis distances for each of the data points and plot it against
 #' upper 2.5\% chi-square quantile
 #' 
@@ -282,37 +347,25 @@ stambaugh.distance.plot <- function(model, level=0.975) {
     
     models <- model$models; n.models <- length(models)
     if (n.models == 0) stop("Empty Models")
-    
-    start <- apply(data,2,function(col) which.min(is.na(col)))
-    freq.tab <- data.frame(table(start)); 
-    freq.tab$start <- as.numeric(levels(freq.tab$start))
-    x.thresh <- c(freq.tab$start - 1 , nrow(data))
-    
-    cum.sort.count   <- cumsum(freq.tab$Freq)
-    levels <- sapply(1:nrow(freq.tab), function(j) 
-        sqrt(qchisq(1 - level, df=cum.sort.count[j],lower.tail=FALSE)))
-    y.thresh <- levels; y.thresh<- c(y.thresh,tail(y.thresh,1))
+
+    if("Truncated" %in% names(models)) stop("Truncated data not allowed")
+    x.thresh <- y.thresh.classical <- y.thresh.robust <- c()
     
     df <- do.call(rbind,lapply(models, 
            function(model, id.n = 10) {
-               
-               dist <- as.matrix(model$dist)
-               outlier <- rep(NA,nrow(dist))
-               
-               for (i in 1:(length(x.thresh)-1))  {
-                   start <- x.thresh[i] + 1; end <- x.thresh[i+1] 
-                   out <- start - 1 + which(dist[start:end] > y.thresh[i])
-                   temp.n <- ifelse(length(out) > id.n, id.n, length(out))
-                   out <- out[order(dist[out], decreasing = TRUE)][1:temp.n]
-                   outlier[out] <- out
-               }
-               
-               data.frame(Type = model$type, cbind(dist,outlier))
+             temp <- .stambaugh.dist(data, model, level, id.n)
+             x.thresh <<- temp$x.thresh
+             
+             if(model$type == "Classical") y.thresh.classical <<- temp$y.thresh
+             else if(model$type == "Robust") y.thresh.robust <<- temp$y.thresh
+             
+             data.frame(Type = model$type, cbind(temp$dist, temp$outlier))
            }))
     
-    dates <- try( as.Date(gsub("[Robust\\.| Classical\\.]","",rownames(df))))
+    dates <- try(as.Date(gsub("[A-Za-z ]+\\.","",rownames(df))))
     df[,"Date"] <- c(seq(1:nrow(data)),seq(1:nrow(data)))
-    dateCheckFailed <- ifelse( class( dates ) != "try-error" && !is.na( dates ), FALSE, TRUE)
+    dateCheckFailed <- ifelse( class( dates ) != "try-error" && 
+                                 !is.na( dates ), FALSE, TRUE)
     
     colnames(df) <- c("Type","Distance","Outlier","Date"); rownames(df) <- NULL
     
@@ -326,14 +379,27 @@ stambaugh.distance.plot <- function(model, level=0.975) {
               axis.title=element_text(size=14))
     
     for (i in 1:(length(x.thresh)-1)){
-        p <- p + geom_segment(x= x.thresh[i], y=y.thresh[i], 
-                              xend=x.thresh[i+1], yend=y.thresh[i],
-                              linetype="dashed", colour="blue")
+      
+      data.segm <- data.frame(x = rep(x.thresh[i],2),
+                 y = c(y.thresh.classical[i],y.thresh.robust[i]),
+                 xend = rep(x.thresh[i+1],2),
+                 yend = c(y.thresh.classical[i],y.thresh.robust[i]),
+                 Type = c("Classical","Robust"))
+      
+      p <- p + geom_segment(data=data.segm,
+                        aes(x=x,y=y,yend=yend,xend=xend),inherit.aes=FALSE ,
+                        linetype="dashed", colour="blue")
+      
+      data.segm <- data.frame(x = rep(x.thresh[i+1],2),
+                              y = c(y.thresh.classical[i],y.thresh.robust[i]),
+                              xend = rep(x.thresh[i+1],2),
+                              yend = c(y.thresh.classical[i+1],y.thresh.robust[i+1]),
+                              Type = c("Classical","Robust"))
         
-        p <- p + geom_segment(x= x.thresh[i+1], y=y.thresh[i], 
-                              xend=x.thresh[i+1], yend=y.thresh[i+1],
-                              colour="blue")
-        
+
+      p <- p + geom_segment(data=data.segm,
+                            aes(x=x,y=y,yend=yend,xend=xend),inherit.aes=FALSE ,
+                            linetype="dashed", colour="blue")
     }
 
     ind <- head(floor(seq(1,nrow(data),length.out = 5)),-1)
@@ -343,6 +409,7 @@ stambaugh.distance.plot <- function(model, level=0.975) {
     options(warn=-1)
     print(p)
     options(warn=0)
+    p
 }
 
 #' Plot Ellipsis or Distance plot for the Stambaugh estimator
@@ -398,12 +465,18 @@ plotmissing <- function(data, which=c(3,4)) {
       d <- melt(coredata(data)); colnames(d) <- c("Index","Symbol","Returns")
       symCount <- ncol(data)
       
-      ind <- head(floor(seq(1,nrow(data),length.out = 5)),-1)
+      #ind <- head(floor(seq(1,nrow(data),length.out = 9)),-1)
+      
+      year.dates <- format(dates, "%Y")
+      ind <- sapply(unique(year.dates), function(val) 
+        which.max(year.dates == val))
+      ind.ind <- seq.int(1, length(ind), length.out = min(10,length(ind)))
+      ind <- ind[ind.ind]
       
       p <- ggplot(data=d, aes(x=Index,y=Returns,colour=Symbol,group=Symbol)) + 
         geom_line() + 
         xlab("Dates") + ylab("Returns") +
-        scale_x_discrete(breaks = ind, labels=format(dates[ind],"%Y")) +
+        scale_x_discrete(breaks = ind, labels=year.dates[ind]) +
         facet_wrap(~Symbol, ncol=round(sqrt(symCount)), scales = "free_x")
       
       print(p)

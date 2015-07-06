@@ -22,5 +22,6 @@ Imports:
   ggplot2,
   knitcitations, 
   quantmod,
-  reshape2
+  reshape2,
+  CerioliOutlierDetection
 NeedsCompilation: yes

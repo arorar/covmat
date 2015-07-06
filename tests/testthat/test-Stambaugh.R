@@ -41,4 +41,7 @@ expect_error(plot.stambaugh(models,5))
 # ellipse plot needs two models
 expect_error(plot.stambaugh(models$models$Classical,1))
 
+# truncated not allowed in distance plot
+expect_error(plot(models,2))
+
 
