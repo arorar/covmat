@@ -48,7 +48,48 @@ get.closing.symdata <- function(symbols, from, to=Sys.Date(), returns=TRUE,
   symbolData
 }
 
-symbols <-  c('BABA', 'TWTR', 'LNKD', 'YHOO', 'GE', 'LAZ', 'V')
-symdata <- get.closing.symdata(symbols, from = "2007-04-01")
+menu <- function() {
+  print("1 . Download symbols for factor data")  
+  print("2 . Download symbols for filtering using RMT")  
+  print("3 . Exit")  
+}
 
-remove(symbols); remove(get.closing.symdata)
+while(TRUE) {
+  menu()
+  opt <- readline("Select any option : ")
+  
+  switch(opt, 
+         "1" = {
+           symbols <-  c('BABA', 'TWTR', 'LNKD', 'YHOO', 'GE', 'LAZ', 'V')
+           
+           symdata <- get.closing.symdata(symbols, from = "2007-04-01")
+           l <- ls(); rm(list = c(l[l != "symdata"],"l")) 
+           break
+         }, 
+         "2" = {
+           symbols <- c('ABT','ANF','ACN','ACE','ACT','ADBE','AMD','AES',
+                        'AET','AFL','A','GAS','APD','ARG','AKAM','AA','ALXN',
+                        'ATI','AGN','ALL','ALTR','AMZN','AEE','AEP','AXP',
+                        'AIG','AMT','AMP','ABC','AMGN','APH','APC','ADI','AON',
+                        'APA','AIV','APOL','AAPL','AMAT','ADM','AIZ','T','ADSK',
+                        'ADP','AN','AZO','AVB','AVY','AVP','BHI','BLL','BAC',
+                        'BCR','BAX','BBT','BDX','BBBY','BMS','BBY','BIIB',
+                        'BLK','HRB','BA','BWA','BXP','BSX','BMY','BRCM',
+                        'CA','CVC','COG','CAM','CPB','COF','CAH')
+           
+           largesymdata <- get.closing.symdata(symbols, from = "2007-04-01")
+           largesymdata <- na.omit(largesymdata)
+           l <- ls(); rm(list = c(l[l != "largesymdata"],"l"))
+           break
+         },
+         "3" = {
+            print('Exiting...')
+           break
+         },
+         {
+            print("Invalid Option. Please re-select")  
+           cat("\n")
+         } 
+  )
+}
+

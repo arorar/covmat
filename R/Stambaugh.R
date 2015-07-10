@@ -175,7 +175,7 @@ stambaugh.est <- function(R,...) {
 #' @param  R xts or matrix of asset returns
 #' @param  ... pass paramters to fitTimeSeriesFactorModel(factorAnalytics), 
 #' covRob, lmRob (Robust) functions
-#' @param style type of model to fit. Takes 3 values classic/robust/truncated
+#' @param method type of model to fit. Takes 3 values classic/robust/truncated
 #' @author Rohit Arora
 #' @export
 #' 

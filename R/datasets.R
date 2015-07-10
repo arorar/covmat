@@ -17,3 +17,12 @@ NULL
 #' @usage symdata
 NULL
 
+#' @name largesymdata
+#' @title Symbol Data
+#' @description Contains returns for 79 random symbols found in S&P 500 
+#'              starting from 2007-04-01 to 2015-07-02. Data maybe updated
+#'              using the getSymbolData script in the inst folder
+#' @docType data
+#' @source Yahoo finance
+#' @usage largesymdata
+NULL

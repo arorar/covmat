@@ -1,24 +1,31 @@
-library(Matrix)
-library(xts)
-library(ggplot2)
-library(RMTstat)
-
-#'Plots the eigenvalues of the correlation matrix and overlays the Marchenko Pastur density
+#'Eigenvalue plot
 #' 
 #' @details
-#' There is a shap cutoff for the density. We are concerned with eigenvalues beyond
-#' this cutoff
+#' Plots eigenvalues of the correlation matrix and overlays the Marchenko-Pastur
+#' density on top of it. There is a shap cutoff for the density. We are concerned
+#' with eigenvalues beyond this cutoff. Paramters used for plotting are added 
+#' to the plot
 #' 
+#' @param x model of the type RMT obtained by fitting an RMT model to the data
+#' @param ... additional arguments unused
 #' @author Rohit Arora
+#' @examples 
+#' \dontrun{
+#'  data("largereturn")
+#'  model <- estRMT(largesymdata)
+#'  plot(model)
+#' }
 #' 
+#' @export
 #' 
-eigen.plot <- function(lambda, Q, sigma.sq){
+plot.RMT <- function(x, ...){
     
-    lambda.max <- sigma.sq*(1 + 1/Q + 2*sqrt(1/Q)) 
+    lambdas <- x$eigVals; Q <- x$Q; sigma.sq <- x$var 
+    lambda.max <- x$lambdascutoff 
     
-    p <- ggplot(data=data.frame(lambda)) + 
-        geom_histogram( aes(x = lambda, y=..density..),
-                        breaks=seq(min(lambda)-1,1+max(lambda),0.5), 
+    p <- ggplot(data=data.frame(lambdas)) + 
+        geom_histogram( aes(x = lambdas, y=..density..),
+                        breaks=seq(min(lambdas)-1,1+max(lambdas),0.5), 
                         colour="black", fill="white") +
         stat_function(fun = dmp, args=list(svr = Q, var=sigma.sq), 
                       aes(colour = 'MP density')) + xlab("Eigenvalues") +
@@ -41,79 +48,132 @@ eigen.plot <- function(lambda, Q, sigma.sq){
     p
 }
 
-#' Implement Denoising of Covariance matrix using Random matrix theory
+#' Denoising of Covariance matrix using Random Matrix Theory
 #' 
 #' @details
 #' This method takes in data as a matrix or an xts object. It then
 #' fits a marchenko pastur density to eigenvalues of the correlation matrix. All
 #' eigenvalues above the cutoff are retained and ones below the cutoff are
-#' retained such that the trace of the correlation matrix is 1. Finally, 
-#' correlation matrix is converted to covariance matrix.
+#' replaced such that the trace of the correlation matrix is 1 or non-significant
+#' eigenvalues are deleted and diagonal of correlation matrix is changed to 1. 
+#' Finally, correlation matrix is converted to covariance matrix.
+#' 
+#' @import Matrix RMTstat doSNOW
 #' 
 #' @param  R xts or matrix of asset returns
+#' @param  Q ratio of rows/size. Can be supplied externally or fit using data
+#' @param  cutoff takes two values max/each. If cutoff is max, Q is fitted and 
+#'          cutoff for eigenvalues is calculated. If cutoff is each, Q is set to
+#'          row/size. Individual cutoff for each eigenvalue is calculated and used
+#'          for filteration. 
+#' @param eigenTreat takes 2 values, average/delete. If average then the noisy 
+#'        eigenvalues are averged and each value is replaced by average. If delete
+#'        then noisy eigenvalues are ignored and the diagonal entries of the 
+#'        correlation matrix are replaced with 1 to make the matrix psd.
+#' @param numEig number of eigenvalues that are known for variance calculation.
+#'        Default is set to 1. If numEig = 0 then variance is assumed to be 1.
+#' @examples 
+#' \dontrun{
+#'  data("largereturn")
+#'  model <- estRMT(largesymdata, numEig = 0)  
+#' }        
+#'        
 #' @author Rohit Arora
 #' 
 #' @export
 #' 
-rmt.est <- function(R, numEig=1) {
-    .data <- as.matrix(R)
+estRMT <- function(R, Q =NA, cutoff = c("max", "each"), 
+                    eigenTreat = c("average", "delete") , numEig=1) {
+    .data <- if(is.xts(R)) coredata(R) else as.matrix(R)
     T <- nrow(.data); M <- ncol(.data) 
     if (T < M) stop("Does not work when T < M")
     
+    if(!is.na(Q)) if(Q < 1) stop("Does not work for Q<1")
+    
+    cutoff <- cutoff[1]; if(!cutoff %in% c("max", "each")) stop("Invalid cutoff")
+    if(cutoff == "each") Q <- T/M
+    
+    eigenTreat <- eigenTreat[1]; 
+    if(!eigenTreat %in% c("average", "delete")) stop("Invalid eigenTreat option")
+    
+    if (numEig < 0) stop("Number of eigenvalues must be non-negative")
+    
     #eigenvalues can be negative. To avoid this e need a positive-definite matrix 
     S <- cov(.data); S <- nearPD(S)$mat 
-    D <- diag(S); C <- cov2cor(S); 
+    D <- diag(diag(as.matrix(S))); C <- cov2cor(S); 
     
     # Marchenko Pastur density is defined for eigenvalues of correlation matrix
     eigen.C <- eigen(C,symmetric=T)
-    lambda <- eigen.C$values; sigma.sq <- mean(lambda)
+    lambdas <- eigen.C$values; sigma.sq <- mean(lambdas)
     
     #minimize log-likelihood. 
     loglik.marpas <- function(theta, sigma.sq) {
         
         Q <- theta
-        val <- sapply(lambda,     
+        val <- sapply(lambdas,     
                       function(x) dmp(x,svr = Q, var=sigma.sq))
         
         val <- val[val > 0]
         ifelse(is.infinite(-sum(log(val))), .Machine$double.xmax, -sum(log(val)))        
     }
     
-    sigma.sq <- 1 - sum(head(lambda,numEig))/M
+    sigma.sq <- 1 - sum(head(lambdas,numEig))/M
     
-    lb <- 1; ub <- T/M
-    cl <- makeCluster(detectCores())
-    registerDoSNOW(cl)
-    clusterEvalQ(cl, library(RMTstat))
-    
-    starts <- seq(lb, ub, length.out = 50)
-    fit.marpas <- foreach(start = starts, .combine = rbind) %dopar% 
-        optim(par = start, fn = loglik.marpas, method = "L-BFGS-B", 
-                            lower = lb, upper = ub, sigma.sq = sigma.sq)    
-    stopCluster(cl)
+    if( is.na(Q) && cutoff != "each") {
+        lb <- 1; ub <- max(T/M,5)
+        cl <- makeCluster(detectCores())
+        registerDoSNOW(cl)
+        clusterEvalQ(cl, library(RMTstat))
+        
+        starts <- seq(lb, ub, length.out = 50)
+        fit.marpas <- foreach(start = starts, .combine = rbind) %dopar% 
+            optim(par = start, fn = loglik.marpas, method = "L-BFGS-B", 
+                  lower = lb, upper = ub, sigma.sq = sigma.sq)    
+        stopCluster(cl)
+        
+        idx <- grep("CONVERGENCE",unlist(fit.marpas[,"message"]))
+        vals <- fit.marpas[idx,c("par","value")]
+        Q <- unlist(vals[which.min(vals[,"value"]),"par"])    
+    }
 
-    idx <- grep("CONVERGENCE",unlist(fit.marpas[,"message"]))
-    vals <- fit.marpas[idx,c("par","value")]
-    Q <- unlist(vals[which.min(vals[,"value"]),"par"])
-    
     lambda.max <- qmp(1, svr=Q, var = sigma.sq)  
-    eigen.plot(lambda, Q, sigma.sq)
-    
     # now that we have a fit. lets denoise eigenvalues below the cutoff
-    idx <- which(lambda > lambda.max)
+    
+    idx <- if(cutoff == "max") 
+        which(lambdas > lambda.max)
+    else if(cutoff == "each")
+    {
+        cutoff.each <- sapply(2:length(lambdas), function(i) {
+            eigr <- lambdas[i:M]
+            mean(eigr)*(1 + (M - i + 1)/T + 2*sqrt((M - i + 1)/T))
+        })
+        
+        c(1, 1 + which(lambdas[-1] > cutoff.each))    
+    }
+
     if (length(idx) == 0) return(S)
     
     val <- eigen.C$values[idx]; vec <- eigen.C$vectors[,idx,drop=FALSE]
-    sum <- 0; for (i in idx) sum <- sum + val[i]*vec[,i] %*% t(vec[,i])
+    sum <- 0; for (i in 1:ncol(vec)) sum <- sum + val[i]*vec[,i] %*% t(vec[,i])
     
     # trace of correlation matrix is 1. Use this to determine all the remaining
     # eigenvalues
-    clean.C <- sum + sum(eigen.C$values[-idx])/M * diag(rep(1,M))
+    
+    lambdas.cleaned <- c()
+    clean.C <- if (eigenTreat == "average") {
+        lambdas.cleaned <- c(val, rep(1,M))
+        sum + sum(eigen.C$values[-idx])/M * diag(rep(1,M))
+    } else if (eigenTreat == "delete") {
+        lambdas.cleaned <- c(val, rep(0,M))
+        diag(sum) <- 1
+        sum
+    }
     
     # convert correlation to covariance matrix and return
-    clean.S <- diag(D)^0.5 %*% clean.C %*% diag(D)^0.5
-    clean.S
+    clean.S <- D^0.5 %*% clean.C %*% D^0.5
+    fit <- list(cov = clean.S, Q = Q, var = sigma.sq, eigVals = lambdas, 
+                eigVals.cleaned = lambdas.cleaned, lambdascutoff = lambda.max)
     
+    class(fit) <- "RMT"
+    fit
 }
-
-cov.mat <- rmt.est(data)
