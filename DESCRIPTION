@@ -23,5 +23,6 @@ Imports:
   knitcitations, 
   quantmod,
   reshape2,
-  CerioliOutlierDetection
+  CerioliOutlierDetection,
+  RMTstat
 NeedsCompilation: yes

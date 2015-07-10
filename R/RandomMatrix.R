@@ -1,17 +1,6 @@
 library(Matrix)
 library(xts)
-
-#' Calculate Marchenko Pastur density for eigenvalues of correlation matrix
-#' 
-#' @details
-#' This method computes the value of the density at a particular lambda
-#' 
-#' @author Rohit Arora
-#' 
-#' 
-d.marchenko.pastur <- function(lambda, Q, lambda.max, lambda.min, sigma.sq) {
-    Q/(2*pi*lambda*sigma.sq) * sqrt((lambda.max - lambda)*(lambda - lambda.min))
-}
+library(ggplot2)
 
 #'Plots the eigenvalues of the correlation matrix and overlays the Marchenko Pastur density
 #' 
@@ -22,22 +11,22 @@ d.marchenko.pastur <- function(lambda, Q, lambda.max, lambda.min, sigma.sq) {
 #' @author Rohit Arora
 #' 
 #' 
-eigen.plot <- function(lambda, Q, lambda.max, lambda.min, sigma.sq){
-     hist(lambda, breaks=seq(min(lambda)-1,1+max(lambda),0.5), 
-          main="Actual vs Fitted Marchenko-Pastur",xlab="Eigenvalues",freq=F)
+eigen.plot <- function(lambda, Q, sigma.sq){
     
-    lambda.plus  <- lambda.max - lambda 
-    lambda.plus[lambda.plus < .Machine$double.eps] <- 0
+    lambda.max <- sigma.sq*(1 + 1/Q + 2*sqrt(1/Q)) 
     
-    lambda.minus <- lambda - lambda.min 
-    lambda.minus[lambda.minus < .Machine$double.eps] <- 0
-    legend("center",
-           legend=c(as.expression(bquote("  "~sigma^{2} == .(round(sigma.sq,3)))),
-        as.expression(bquote("   "~Q == .(round(Q,3)))),
-        as.expression(bquote(lambda[max] == .(round(lambda.max,3))))), bty="n")
+    p <- ggplot(data=data.frame(lambda)) + 
+        geom_histogram( aes(x = lambda, y=..density..),
+                        breaks=seq(min(lambda)-1,1+max(lambda),0.5), 
+                        colour="black", fill="white") +
+        stat_function(fun = dmp, args=list(svr = Q, var=sigma.sq), 
+                      aes(colour = 'MP density')) + xlab("Eigenvalues") +
+        labs(title="Actual vs Fitted Marchenko-Pastur") + ylim(0,1.5) + 
+        theme(plot.title = element_text(size = 20, face = "bold", vjust = 1),
+              axis.title=element_text(size=14,face="bold"))
     
-    lines(lambda,Q/(2*pi*sigma.sq) * sqrt(lambda.plus*lambda.minus)/lambda, 
-          col="red",lwd=2)    
+    print(p)
+    p
 }
 
 #' Implement Denoising of Covariance matrix using Random matrix theory
@@ -77,20 +66,21 @@ rmt.est <- function(R) {
         
         lambda.tmp <- lambda[lambda < lambda.max & lambda > lambda.min]
         val <- sapply(lambda.tmp,     
-                      function(x) d.marchenko.pastur(x,Q,lambda.max,lambda.min,sigma.sq))
+                      function(x) dmp(x,svr = Q, var=sigma.sq))
         
         -sum(log(val))        
     }
     
     # these paramters for optimization are slightly arbitrary
     start <- c(T/M,1); lb <- c(1,1); ub <- c(5, var(lambda))
-    fit.marpas <- optim(par = start, fn = loglik.marpas, method = "L-BFGS-B", lower = lb, upper = ub)
+    fit.marpas <- optim(par = start, fn = loglik.marpas, method = "L-BFGS-B", 
+                        lower = lb, upper = ub)
     
     Q <- fit.marpas$par[1]; sigma.sq <- fit.marpas$par[2]
     
     lambda.max <- sigma.sq*(1 + 1/Q + 2*sqrt(1/Q))  
     lambda.min <- sigma.sq*(1 + 1/Q - 2*sqrt(1/Q))
-    eigen.plot(lambda, Q, lambda.max, lambda.min, sigma.sq)
+    eigen.plot(lambda, Q, sigma.sq)
     
     # now that we have a fit. lets denoise eigenvalues below the cutoff
     idx <- which(lambda > lambda.max)
