@@ -1,6 +1,7 @@
 library(Matrix)
 library(xts)
 library(ggplot2)
+library(RMTstat)
 
 #'Plots the eigenvalues of the correlation matrix and overlays the Marchenko Pastur density
 #' 
@@ -23,9 +24,20 @@ eigen.plot <- function(lambda, Q, sigma.sq){
                       aes(colour = 'MP density')) + xlab("Eigenvalues") +
         labs(title="Actual vs Fitted Marchenko-Pastur") + ylim(0,1.5) + 
         theme(plot.title = element_text(size = 20, face = "bold", vjust = 1),
-              axis.title=element_text(size=14,face="bold"))
+              axis.title=element_text(size=14,face="bold")) + 
+        annotate('text', x = 10, y = 0.9, 
+                 label = paste("sigma^{2} == ", round(sigma.sq,3)), 
+                 parse=TRUE, size = 8) +
+        annotate('text', x = 10, y = 1, 
+                 label = paste("Q == ", round(Q,3)), parse=TRUE, , size = 8) + 
+        annotate('text', x = 10, y = 0.78, 
+                 label = paste("lambda[max] ==", round(lambda.max,3)), 
+                 parse=TRUE, , size = 8) + 
+        scale_colour_manual("", values = c("red"))
     
+    options(warn = -1)
     print(p)
+    options(warn = 0)
     p
 }
 
@@ -43,7 +55,7 @@ eigen.plot <- function(lambda, Q, sigma.sq){
 #' 
 #' @export
 #' 
-rmt.est <- function(R) {
+rmt.est <- function(R, numEig=1) {
     .data <- as.matrix(R)
     T <- nrow(.data); M <- ncol(.data) 
     if (T < M) stop("Does not work when T < M")
@@ -57,29 +69,34 @@ rmt.est <- function(R) {
     lambda <- eigen.C$values; sigma.sq <- mean(lambda)
     
     #minimize log-likelihood. 
-    loglik.marpas <- function(theta) {
+    loglik.marpas <- function(theta, sigma.sq) {
         
-        Q <- theta[1]; sigma.sq <- theta[2]
-        
-        lambda.max <- sigma.sq*(1 + 1/Q + 2*sqrt(1/Q)) 
-        lambda.min <- sigma.sq*(1 + 1/Q - 2*sqrt(1/Q))
-        
-        lambda.tmp <- lambda[lambda < lambda.max & lambda > lambda.min]
-        val <- sapply(lambda.tmp,     
+        Q <- theta
+        val <- sapply(lambda,     
                       function(x) dmp(x,svr = Q, var=sigma.sq))
         
-        -sum(log(val))        
+        val <- val[val > 0]
+        ifelse(is.infinite(-sum(log(val))), .Machine$double.xmax, -sum(log(val)))        
     }
     
-    # these paramters for optimization are slightly arbitrary
-    start <- c(T/M,1); lb <- c(1,1); ub <- c(5, var(lambda))
-    fit.marpas <- optim(par = start, fn = loglik.marpas, method = "L-BFGS-B", 
-                        lower = lb, upper = ub)
+    sigma.sq <- 1 - sum(head(lambda,numEig))/M
     
-    Q <- fit.marpas$par[1]; sigma.sq <- fit.marpas$par[2]
+    lb <- 1; ub <- T/M
+    cl <- makeCluster(detectCores())
+    registerDoSNOW(cl)
+    clusterEvalQ(cl, library(RMTstat))
     
-    lambda.max <- sigma.sq*(1 + 1/Q + 2*sqrt(1/Q))  
-    lambda.min <- sigma.sq*(1 + 1/Q - 2*sqrt(1/Q))
+    starts <- seq(lb, ub, length.out = 50)
+    fit.marpas <- foreach(start = starts, .combine = rbind) %dopar% 
+        optim(par = start, fn = loglik.marpas, method = "L-BFGS-B", 
+                            lower = lb, upper = ub, sigma.sq = sigma.sq)    
+    stopCluster(cl)
+
+    idx <- grep("CONVERGENCE",unlist(fit.marpas[,"message"]))
+    vals <- fit.marpas[idx,c("par","value")]
+    Q <- unlist(vals[which.min(vals[,"value"]),"par"])
+    
+    lambda.max <- qmp(1, svr=Q, var = sigma.sq)  
     eigen.plot(lambda, Q, sigma.sq)
     
     # now that we have a fit. lets denoise eigenvalues below the cutoff
@@ -96,9 +113,7 @@ rmt.est <- function(R) {
     # convert correlation to covariance matrix and return
     clean.S <- diag(D)^0.5 %*% clean.C %*% diag(D)^0.5
     clean.S
+    
 }
 
-#test
-data <- read.zoo("./data/all_sp500_price_data.csv", header=TRUE)
-data <- diff(log(na.omit(data)))[,1:80]
-denoised.cov.mat <- rmt.est(data)
+cov.mat <- rmt.est(data)
