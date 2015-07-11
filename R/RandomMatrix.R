@@ -58,7 +58,12 @@ plot.RMT <- function(x, ...){
 #' eigenvalues are deleted and diagonal of correlation matrix is changed to 1. 
 #' Finally, correlation matrix is converted to covariance matrix.
 #' 
-#' @import Matrix RMTstat doSNOW
+#' @importFrom Matrix nearPD
+#' @importFrom RMTstat dmp qmp
+#' @importFrom foreach "%dopar%" foreach
+#' @importFrom parallel detectCores stopCluster
+#' @importFrom snow makeCluster clusterEvalQ
+#' @importFrom doSNOW registerDoSNOW
 #' 
 #' @param  R xts or matrix of asset returns
 #' @param  Q ratio of rows/size. Can be supplied externally or fit using data
@@ -99,8 +104,8 @@ estRMT <- function(R, Q =NA, cutoff = c("max", "each"),
     if (numEig < 0) stop("Number of eigenvalues must be non-negative")
     
     #eigenvalues can be negative. To avoid this e need a positive-definite matrix 
-    S <- cov(.data); S <- nearPD(S)$mat 
-    D <- diag(diag(as.matrix(S))); C <- cov2cor(S); 
+    S <- cov(.data); S <- as.matrix(nearPD(S)$mat)
+    D <- diag(diag(S)); C <- cov2cor(S); 
     
     # Marchenko Pastur density is defined for eigenvalues of correlation matrix
     eigen.C <- eigen(C,symmetric=T)
