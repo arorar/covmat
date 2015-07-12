@@ -67,17 +67,13 @@ while(TRUE) {
            break
          }, 
          "2" = {
-           symbols <- c('ABT','ANF','ACN','ACE','ACT','ADBE','AMD','AES',
-                        'AET','AFL','A','GAS','APD','ARG','AKAM','AA','ALXN',
-                        'ATI','AGN','ALL','ALTR','AMZN','AEE','AEP','AXP',
-                        'AIG','AMT','AMP','ABC','AMGN','APH','APC','ADI','AON',
-                        'APA','AIV','APOL','AAPL','AMAT','ADM','AIZ','T','ADSK',
-                        'ADP','AN','AZO','AVB','AVY','AVP','BHI','BLL','BAC',
-                        'BCR','BAX','BBT','BDX','BBBY','BMS','BBY','BIIB',
-                        'BLK','HRB','BA','BWA','BXP','BSX','BMY','BRCM',
-                        'CA','CVC','COG','CAM','CPB','COF','CAH')
+           symbols <- c('AAPL','AXP','BA','CAT','CSCO','CVX','DD','DIS','GE',
+                        'GS','HD','IBM','INTC','JNJ','JPM','KO','MCD','MMM',
+                        'MRK','MSFT','NKE','PFE','PG','TRV','UNH','UTX','V',
+                        'VZ','WMT','XOM')
            
-           largesymdata <- get.closing.symdata(symbols, from = "2007-04-01")
+           largesymdata <- get.closing.symdata(symbols, from = "2014-04-01",
+                                               frequency = "daily")
            largesymdata <- na.omit(largesymdata)
            l <- ls(); rm(list = c(l[l != "largesymdata"],"l"))
            break
@@ -92,4 +88,5 @@ while(TRUE) {
          } 
   )
 }
+
 

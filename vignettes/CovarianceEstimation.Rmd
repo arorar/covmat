@@ -207,6 +207,19 @@ compare.cov(cov(rets),cov(na.omit(symdata)),c("FMMC","Truncated"))
 \
 
 
+# Denoising using Random Matrix Theory
+
+Random matrix theory provides a way to de-noise the sample covariance matrix . Let X be a matrix with T rows and N columns random matrix. C is the sample correlation matrix. Under the random matrix assumption, the eigenvalues of C must follow a Marchenko-Pastur density such that $N,T\rightarrow \infty, and Q=\frac{N}{T}$. The density of eigenvalues is given by $$f\left( \lambda  \right) = \frac{Q}{2\pi \lambda {\sigma ^2}}\sqrt {\left( {{\lambda _{max}} - \lambda } \right)\left( {\lambda  - {\lambda _{\min }}} \right)}$$
+
+
+## Data
+Daily Dow Jones 30 index.
+
+## Covariance estimation
+
+## Plots
+
+
 #References
 ```{r references, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, echo=FALSE}
 #write.bibtex(file="references.bib")
