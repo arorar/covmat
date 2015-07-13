@@ -1,7 +1,7 @@
 data("largereturn")
 symCount <- ncol(largesymdata)
 
-model <- estRMT(largesymdata, cutoff = "each")
+model <- estRMT(largesymdata, cutoff = "each", parallel = FALSE)
 
 #class check
 expect_is(model, "RMT")

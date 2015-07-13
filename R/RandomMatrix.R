@@ -33,13 +33,11 @@ plot.RMT <- function(x, ...){
         theme(plot.title = element_text(size = 20, face = "bold", vjust = 1),
               axis.title=element_text(size=14,face="bold")) + 
         annotate('text', x = 10, y = 0.9, 
-                 label = paste("sigma^{2} == ", round(sigma.sq,3)), 
-                 parse=TRUE, size = 8) +
+                 label = paste("sigma^{2} == ", round(sigma.sq,3)), parse=TRUE) +
         annotate('text', x = 10, y = 1, 
-                 label = paste("Q == ", round(Q,3)), parse=TRUE, , size = 8) + 
+                 label = paste("Q == ", round(Q,3)), parse=TRUE) + 
         annotate('text', x = 10, y = 0.78, 
-                 label = paste("lambda[max] ==", round(lambda.max,3)), 
-                 parse=TRUE, , size = 8) + 
+                 label = paste("lambda[max] ==", round(lambda.max,3)), parse=TRUE) + 
         scale_colour_manual("", values = c("red"))
     
     options(warn = -1)
@@ -77,6 +75,7 @@ plot.RMT <- function(x, ...){
 #'        correlation matrix are replaced with 1 to make the matrix psd.
 #' @param numEig number of eigenvalues that are known for variance calculation.
 #'        Default is set to 1. If numEig = 0 then variance is assumed to be 1.
+#' @param parallel boolean to use all cores of a machine.
 #' @examples 
 #' \dontrun{
 #'  data("largereturn")
@@ -88,7 +87,8 @@ plot.RMT <- function(x, ...){
 #' @export
 #' 
 estRMT <- function(R, Q =NA, cutoff = c("max", "each"), 
-                    eigenTreat = c("average", "delete") , numEig=1) {
+                    eigenTreat = c("average", "delete") , numEig=1, 
+                   parallel = TRUE) {
     .data <- if(is.xts(R)) coredata(R) else as.matrix(R)
     T <- nrow(.data); M <- ncol(.data) 
     if (T < M) stop("Does not work when T < M")
@@ -126,15 +126,18 @@ estRMT <- function(R, Q =NA, cutoff = c("max", "each"),
     
     if( is.na(Q) && cutoff != "each") {
         lb <- 1; ub <- max(T/M,5)
-        cl <- makeCluster(detectCores())
-        registerDoSNOW(cl)
-        clusterEvalQ(cl, library(RMTstat))
-        
+        if(parallel) {
+          cl <- makeCluster(detectCores())
+          registerDoSNOW(cl)
+          clusterEvalQ(cl, library(RMTstat))
+        }
+
         starts <- seq(lb, ub, length.out = 50)
         fit.marpas <- foreach(start = starts, .combine = rbind) %dopar% 
             optim(par = start, fn = loglik.marpas, method = "L-BFGS-B", 
-                  lower = lb, upper = ub, sigma.sq = sigma.sq)    
-        stopCluster(cl)
+                  lower = lb, upper = ub, sigma.sq = sigma.sq)   
+        
+        if(parallel) stopCluster(cl)
         
         idx <- grep("CONVERGENCE",unlist(fit.marpas[,"message"]))
         vals <- fit.marpas[idx,c("par","value")]

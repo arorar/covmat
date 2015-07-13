@@ -5,7 +5,7 @@
 \title{Denoising of Covariance matrix using Random Matrix Theory}
 \usage{
 estRMT(R, Q = NA, cutoff = c("max", "each"), eigenTreat = c("average",
-  "delete"), numEig = 1)
+  "delete"), numEig = 1, parallel = TRUE)
 }
 \arguments{
 \item{R}{xts or matrix of asset returns}
@@ -24,6 +24,8 @@ correlation matrix are replaced with 1 to make the matrix psd.}
 
 \item{numEig}{number of eigenvalues that are known for variance calculation.
 Default is set to 1. If numEig = 0 then variance is assumed to be 1.}
+
+\item{parallel}{boolean to use all cores of a machine.}
 }
 \description{
 Denoising of Covariance matrix using Random Matrix Theory
