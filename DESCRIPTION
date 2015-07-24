@@ -28,5 +28,8 @@ Imports:
   Matrix,
   parallel,
   snow,
-  doSNOW
+  doSNOW,
+  fGarch, 
+  lhs
+Depends: mvtnorm 
 NeedsCompilation: yes

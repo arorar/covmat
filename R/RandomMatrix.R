@@ -60,7 +60,7 @@ plot.RMT <- function(x, ...){
 #' @importFrom RMTstat dmp qmp
 #' @importFrom foreach "%dopar%" foreach
 #' @importFrom parallel detectCores stopCluster
-#' @importFrom snow makeCluster clusterEvalQ
+#' @importFrom snow makeCluster clusterEvalQ clusterExport
 #' @importFrom doSNOW registerDoSNOW
 #' 
 #' @param  R xts or matrix of asset returns
