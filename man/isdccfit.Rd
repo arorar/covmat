@@ -12,12 +12,15 @@ isdccfit(R, numRegimes, transMatbounds = c(2, 10), dccBounds = c(0, 1),
 
 \item{numRegimes}{number of regimes to fit to the data}
 
-\item{transMatbounds}{bounds on the parameter tau as described in (Lee, 2010)}
+\item{transMatbounds}{bounds on the parameter tau as described in (Lee, 2010).
+Each paramter is defaulted to lie in the range (2,10)}
 
-\item{dccBounds}{bounds on the paramter theta as described in (Lee, 2010)}
+\item{dccBounds}{bounds on the paramter theta as described in (Lee, 2010).
+Each paramter is defaulted to lie in the range (0,1)}
 
 \item{w}{proportion of entries to consider in initializing correlation for
-for each regime}
+for each regime. It is defualted to split data equally across
+all regimes}
 
 \item{...}{addition control paramters that can be passed to the control object
        in DEoptim}
@@ -38,6 +41,12 @@ each time series. In the second step DCC parameters for each state
 are estimated along with the transition probabilities corresponding to the
 Hidden Markov model. This is done by maximising the log-likelihood of
 observing the residuals
+}
+\examples{
+\dontrun{
+ data("largereturn")
+ model <- isdccfit(largesymdata, numRegimes=2, maxiter=50, paralletType=0)
+}
 }
 \author{
 Rohit Arora
