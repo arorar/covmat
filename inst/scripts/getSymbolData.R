@@ -51,7 +51,8 @@ get.closing.symdata <- function(symbols, from, to=Sys.Date(), returns=TRUE,
 menu <- function() {
   print("1 . Download symbols for factor data")  
   print("2 . Download symbols for filtering using RMT")  
-  print("3 . Exit")  
+  print("3 . Download symbols for Independent Switching DCC")  
+  print("4 . Exit")  
 }
 
 while(TRUE) {
@@ -62,8 +63,8 @@ while(TRUE) {
          "1" = {
            symbols <-  c('BABA', 'TWTR', 'LNKD', 'YHOO', 'GE', 'LAZ', 'V')
            
-           symdata <- get.closing.symdata(symbols, from = "2007-04-01")
-           l <- ls(); rm(list = c(l[l != "symdata"],"l")) 
+           missingdata <- get.closing.symdata(symbols, from = "2007-04-01")
+           l <- ls(); rm(list = c(l[l != "missingdata"],"l")) 
            break
          }, 
          "2" = {
@@ -72,13 +73,23 @@ while(TRUE) {
                         'MRK','MSFT','NKE','PFE','PG','TRV','UNH','UTX','V',
                         'VZ','WMT','XOM')
            
-           largesymdata <- get.closing.symdata(symbols, from = "2014-04-01",
+           dow30data <- get.closing.symdata(symbols, from = "2014-04-01",
                                                frequency = "daily")
-           largesymdata <- na.omit(largesymdata)
-           l <- ls(); rm(list = c(l[l != "largesymdata"],"l"))
+           dow30data <- na.omit(dow30data)
+           l <- ls(); rm(list = c(l[l != "dow30data"],"l"))
            break
          },
          "3" = {
+           symbols <- c('XLE', 'XLY', 'XLP','XLF','XLV','XLI','XLB','XLK', 'XLU')
+           
+           etfdata <- get.closing.symdata(symbols, from = "2008-01-01",
+                                                to = "2010-12-31",
+                                               frequency = "daily")
+           etfdata <- na.omit(etfdata)
+           l <- ls(); rm(list = c(l[l != "etfdata"],"l"))
+           break
+         },
+         "4" = {
             print('Exiting...')
            break
          },

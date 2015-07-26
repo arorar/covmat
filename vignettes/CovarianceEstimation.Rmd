@@ -60,9 +60,9 @@ Say that we have a portfolio of 4 tech stocks $\texttt{TWTR, LNKD, V, YHOO, GE}$
 
 ```{r load-data, echo=FALSE, cache=FALSE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
 
-data("returnsdata")
+data("missingdata")
 symbols <- c('TWTR', 'LNKD', 'V', 'YHOO', 'GE')
-symdata <- symdata["2007-04-01/2014-12-31",symbols]
+symdata <- missingdata["2007-04-01/2014-12-31",symbols]
 
 ```
 
@@ -160,7 +160,7 @@ The factor data and symbol data is stored in the package and can be loaded as fo
 
 ```{r load-data-fmmc, cache=FALSE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
 
-data("returnsdata")
+data("missingdata")
 data("factordata")
 
 ```
@@ -219,7 +219,7 @@ To demonstrate the use of Random Matrix theory we will choose the $\texttt{large
 
 ```{r rmt-load}
 
-data("largereturn")
+data("dow30data")
 
 ```
 

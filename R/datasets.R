@@ -7,22 +7,32 @@
 #' @usage factor.data
 NULL
 
-#' @name symdata
+#' @name missingdata
 #' @title Symbol Data
 #' @description Contains returns for 7 symbols ie BABA, TWTR, LNKD, YHOO, GE, 
 #'              LAZ, V starting from 2007-04-01 to 2015-07-02. Data maybe updated
 #'              using the getSymbolData script in the inst folder
 #' @docType data
 #' @source Yahoo finance
-#' @usage symdata
+#' @usage missingdata
 NULL
 
-#' @name largesymdata
+#' @name dow30data
 #' @title Symbol Data
-#' @description Contains returns for 79 random symbols found in S&P 500 
-#'              starting from 2007-04-01 to 2015-07-02. Data maybe updated
+#' @description Contains returns for 30 symbols found in Dow Jones 30
+#'              starting from 2014-04-01 to 2015-07-23. Data maybe updated
 #'              using the getSymbolData script in the inst folder
 #' @docType data
 #' @source Yahoo finance
-#' @usage largesymdata
+#' @usage dow30data
+NULL
+
+#' @name etfdata
+#' @title Symbol Data
+#' @description Contains returns for 9 etf symbols XLE, XLY, XLP, XLF, XLV,XLI,
+#'              XLB, XLK,XLU starting from 2008-01-01 to 2010-12-31. Data maybe 
+#'              updated using the getSymbolData script in the inst folder
+#' @docType data
+#' @source Yahoo finance
+#' @usage dow30data
 NULL
