@@ -93,6 +93,7 @@
     seq(from = starts[i], length.out = size[i]))
 
   Q0 <- lapply(parts, function(indices) cor(R[indices,]))
+  names(Q0) <- 1:numRegimes
   Q0
 }
 
@@ -137,7 +138,14 @@
   
   P <- .TransitionProb(taus, numRegimes); T <- nrow(returns)
   filtprob <- .initFilterProb(P); loglik <- 0
-  likelihood <- rep(NA, numRegimes); Cov <- Q
+  likelihood <- rep(NA, numRegimes) 
+  
+  dates <- as.character(index(returns))
+  Cov <- replicate(T,list()); names(Cov) <- dates
+  
+  prob_t <- matrix(NA, nrow = T, ncol = numRegimes )
+  rownames(prob_t) <- dates
+  prob_t[1, ] <- filtprob
   
   for(t in 2:T) {
     
@@ -152,10 +160,8 @@
       H <- D %*% C %*% D
       likelihood[i] <- dmvnorm(returns[t,], sigma = H)
       
-      if(t == T)  {
-        rownames(H) <- colnames(H) <- colnames(returns)
-        Cov[[i]] <- H
-      }
+      rownames(H) <- colnames(H) <- colnames(returns)
+      Cov[[dates[t]]][[i]] <- H
     }
     
     mixLik <- as.numeric(
@@ -164,11 +170,12 @@
     if(mixLik == 0) loglik <- -1e6
     else {
       filtprob <- (filtprob*likelihood)/mixLik
+      prob_t[t, ] <- filtprob
       loglik <- loglik + log(mixLik)
     }
   }
   
-  list(loglik=loglik, Cov = Cov, filtProb = filtprob)
+  list(loglik=loglik, Cov = Cov, filtProb = prob_t)
 }
 
 #' Calculate the log-liklihood
@@ -229,12 +236,22 @@
 #' 
 #' @param  R xts object of asset returns
 #' @param  numRegimes number of regimes to fit to the data
-#' @param  transMatbounds bounds on the parameter tau as described in (Lee, 2010)
-#' @param  dccBounds  bounds on the paramter theta as described in (Lee, 2010)
+#' @param  transMatbounds bounds on the parameter tau as described in (Lee, 2010).
+#'          Each paramter is defaulted to lie in the range (2,10)
+#' @param  dccBounds  bounds on the paramter theta as described in (Lee, 2010).
+#'          Each paramter is defaulted to lie in the range (0,1)
 #' @param  w proportion of entries to consider in initializing correlation for 
-#'          for each regime
+#'          for each regime. It is defualted to split data equally across 
+#'          all regimes
 #' @param  ... addition control paramters that can be passed to the control object
 #'        in DEoptim 
+#'        
+#' @examples 
+#' \dontrun{
+#'  data("largereturn")
+#'  model <- isdccfit(largesymdata, numRegimes=2, maxiter=50, paralletType=0)  
+#' }
+#' 
 #' 
 #' @export
 #' 
@@ -244,6 +261,17 @@ isdccfit <- function(R, numRegimes,
                      transMatbounds = c(2,10), dccBounds = c(0,1),
                      w = NA, ...) {
   
+  if (!is.xts(R)) stop("Only xts object required")
+  if (!(abs(numRegimes - round(numRegimes)) < .Machine$double.eps)) 
+    stop("Regimes must be an integer")
+  if (length(transMatbounds) != 2 || any(is.na(transMatbounds)))
+    stop("Transition Matrix bounds are incorrect")
+  if (length(dccBounds) != 2 || any(is.na(dccBounds)))
+    stop("DCC paremeter bounds are incorrect")
+  
+  if (any(is.na(w))) w <- rep(1/numRegimes, numRegimes)  
+  
+  
   garchFit <- apply(R, 2, function(data)
     garchFit(~ garch(1,1), data = data, trace = FALSE))  
   
@@ -251,8 +279,6 @@ isdccfit <- function(R, numRegimes,
   sigma_t <- do.call(cbind,sigma_t)
   
   stdReturn_t <- R/sigma_t
-  
-  if (any(is.na(w))) w <- rep(1/numRegimes, numRegimes)
   
   Q0 <- .initQ(stdReturn_t, numRegimes, w);  Q.bar <- cov(stdReturn_t)
   
@@ -293,7 +319,67 @@ isdccfit <- function(R, numRegimes,
     .helper.loglik(taus, theta1, theta2, R, sigma_t, 
                    numRegimes, Q0, Q.bar)
   
-  list(logLik = result$loglik, filtProb = result$filtProb, 
+  fit <- list(logLik = result$loglik, filtProb = result$filtProb, 
        param = list(garch = garchParams, ISDCCParams = c(taus, theta1, theta2)),
        cov = result$Cov)
+  
+  class(fit) <- "isdcc"
+  fit
+}
+
+#'Implied State plot
+#' 
+#' @details
+#' Plot implied states using the fitted Independent Switching DCC model
+#' 
+#' @param x model of the type isdcc obtained by fitting an IS-DCC model to the data
+#' @param  which takes values 1/2. 1 = Implied States, 2 = Smoothed Proabability
+#' @param ... additional arguments unused
+#' @author Rohit Arora
+#' @examples 
+#' \dontrun{
+#'  data("largereturn")
+#'  model <- isdccfit(largesymdata, numRegimes=2)
+#'  plot(model)
+#' }
+#' 
+#' @export
+#' 
+plot.isdcc <- function(x, which.plot=c(1,2),...){
+  
+  which.plot <- which.plot[1]
+  
+  prob <- x$filtProb
+  states <- apply(prob, 1, which.max)
+  dates <- rownames(prob)
+  
+  df <- data.frame(dates = 1:length(states), states = states, 
+                   prob = apply(prob, 1, max))
+
+  year.dates <- format(as.Date(dates), "%Y")
+  ind <- sapply(unique(year.dates), function(val) 
+    which.max(year.dates == val))
+  ind.ind <- seq.int(1, length(ind), length.out = min(10,length(ind)))
+  ind <- ind[ind.ind]
+
+  p <- ggplot(data = df, aes(x = dates)) + 
+    scale_x_continuous(breaks = ind, labels=year.dates[ind])
+
+  p <- 
+    if (which.plot == 1) 
+      p + geom_step(aes(y = states),direction = "hv") + ylab("States") + 
+      scale_y_continuous(breaks = c(min(states),max(states))) + 
+      ggtitle("Implied States")
+  else if (which.plot == 2) 
+    p + geom_line(aes(y = prob, color = as.factor(states))) + 
+    ylab("Probability") + ggtitle("Smoothed Probability") + 
+    scale_colour_discrete(name = "States")
+
+  p <- p + theme(plot.title = element_text(size = 20, face = "bold", vjust = 1),
+             axis.title=element_text(size=14,face="bold"))
+  
+  options(warn = -1)
+  print(p)
+  options(warn = 0)
+  p
 }
