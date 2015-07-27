@@ -255,7 +255,7 @@
 #' 
 #' @author Rohit Arora
 #' 
-isdccfit <- function(R, numRegimes, 
+isdccfit <- function(R, numRegimes=NA, 
                      transMatbounds = c(2,10), dccBounds = c(0,1),
                      w = NA, ...) {
   
@@ -264,8 +264,14 @@ isdccfit <- function(R, numRegimes,
     stop("Regimes must be an integer")
   if (length(transMatbounds) != 2 || any(is.na(transMatbounds)))
     stop("Transition Matrix bounds are incorrect")
+  if ( transMatbounds[2]  < transMatbounds[1] )
+    stop("Transition Matrix bounds are invalid")
   if (length(dccBounds) != 2 || any(is.na(dccBounds)))
     stop("DCC paremeter bounds are incorrect")
+  if ( dccBounds[2]  < dccBounds[1] )
+    stop("DCC parameter bounds are invalid")
+  if ( dccBounds[1]  < 0 )
+    stop("DCC parameter bounds must be positive")
   
   if (any(is.na(w))) w <- rep(1/numRegimes, numRegimes)  
   

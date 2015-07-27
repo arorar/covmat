@@ -355,7 +355,7 @@ charts.PerformanceSummary(strat.rets,wealth.index = T,
 
 # Independent Switching Dynamic Conditional Correlation Model
 
-The IS-DCC model from `r `has the same structure as the DCC model but it lets the constants be state dependent and hence makes it possible to model
+The IS-DCC model from `r citep(bib[["Lee_2010"]])` has the same structure as the DCC model but it lets the constants be state dependent and hence makes it possible to model
 time-varying correlation with different dynamics for each regime. The model runs a separate DCC process for each state in parallel and avoids the path dependency problem and makes the model tractable.
 
 Fitting the IS-DCC model to data corresponds to a two step process, where the first step is to estimate the volatility of each univariate time series separately using GARCH(1,1), as in the case for DCC. The second step corresponds to estimating the DCC(1,1) parameters for each state and estimating the transition probabilities corresponding to the Hidden Markov Model. This is done by maximising the log likelihood using the Expectation Maximization (EM) algorithm.
@@ -414,7 +414,7 @@ custom.portfolio.moments.isdcc <- function(R, portfolio) {
   momentargs <- list()
   momentargs$mu  <-  matrix(as.vector(apply(R,2, "mean")), ncol = 1)
   
-  result <- isdccfit(R, numRegimes = 3, itermax=100)
+  result <- isdccfit(R, numRegimes = 2, itermax=100)
   ldate <- as.character(tail(index(R),1))
   maxProbIndex <- which.max(result$filtProb[ldate,])
   momentargs$sigma  <-  result$cov[[ldate]][[maxProbIndex]]
@@ -424,6 +424,8 @@ custom.portfolio.moments.isdcc <- function(R, portfolio) {
   
   return(momentargs)
 }
+
+
 
 custom.portfolio.moments.dcc <- function(R, portfolio) {
   
@@ -462,8 +464,10 @@ pspec.lo.isdcc <- portfolio.spec(assets = colnames(datap))
 pspec.lo.isdcc <- add.constraint(pspec.lo.isdcc, type="full_investment")
 pspec.lo.isdcc <- add.constraint(pspec.lo.isdcc, type="long_only")
 
-pspec.lo.isdcc <- add.objective(portfolio=pspec.lo.isdcc, type="return", name="mean")
-pspec.lo.isdcc <- add.objective(portfolio=pspec.lo.isdcc, type="risk", name="var")
+pspec.lo.isdcc <- add.objective(portfolio=pspec.lo.isdcc, 
+                                type="return", name="mean")
+pspec.lo.isdcc <- add.objective(portfolio=pspec.lo.isdcc, 
+                                type="risk", name="var")
 
 ```
 
@@ -472,24 +476,26 @@ Now lets backtest our strategy using an ordinary covariance matrix and covarianc
 ```{r isdcc-run, warning=FALSE, error=FALSE , message=FALSE, results='hide'}
 
 ordinary <- 
-  optimize.portfolio.rebalancing(datap, pspec.lo, 
+  optimize.portfolio.rebalancing(datap, pspec.lo.isdcc, 
                                  optimize_method="quadprog",
                                  rebalance_on="months", 
                                  training_period=120,
                                  trailing_periods=120)
 
 opt.dcc <- 
-  optimize.portfolio.rebalancing(datap, pspec.lo, 
+  optimize.portfolio.rebalancing(datap, pspec.lo.isdcc, 
                                   optimize_method="quadprog",
-                                  momentFUN = "custom.portfolio.moments.dcc",
+                                  momentFUN = 
+                                   "custom.portfolio.moments.dcc",
                                   rebalance_on="months",
                                   training_period=120,
                                   trailing_periods=120)
 
 opt.isdcc <- 
-  optimize.portfolio.rebalancing(datap, pspec.lo, 
+  optimize.portfolio.rebalancing(datap, pspec.lo.isdcc, 
                                           optimize_method="quadprog",
-                                          momentFUN = "custom.portfolio.moments.isdcc",
+                                          momentFUN = 
+                                   "custom.portfolio.moments.isdcc",
                                           rebalance_on="months",
                                           training_period=120,
                                           trailing_periods=120)
@@ -517,6 +523,7 @@ colnames(strategy.rets) <- c("ordinary", "dcc", "isdcc")
 In the chart below we can see that  the cumulative returns generated using our strategy with
 IS-DCC model are superior to ordinary returns as well as returns by the DCC model. This suggests that there is value in assuming the presence of regimes in data and exploring the idea further while optimizing portfolios.
 
+$\newline$
 ```{r isdccstratplots, fig.width=10, fig.height=8}
 charts.PerformanceSummary(strategy.rets,wealth.index = T,
                           colorset = c("red","blue","green"), 
