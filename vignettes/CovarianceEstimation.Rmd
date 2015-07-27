@@ -26,6 +26,8 @@ $\pagebreak$
 
 ```{r load_packages, results='hide', echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
 knitr::opts_chunk$set(fig.pos="h")
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(cache.path='./CovarianceEstimation_cache/')
 
 library(knitcitations)
 cleanbib()
@@ -58,7 +60,7 @@ Longer monthly return data series are often available from well-established comp
 
 Say that we have a portfolio of 4 tech stocks $\texttt{TWTR, LNKD, V, YHOO, GE}$  of which only 2 have a return history of 6 years, while the other 3 have been around for less than four years. 
 
-```{r load-data, echo=FALSE, cache=FALSE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
+```{r load-data, echo=FALSE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
 
 data("missingdata")
 symbols <- c('TWTR', 'LNKD', 'V', 'YHOO', 'GE')
@@ -158,7 +160,7 @@ We will also add a volatility factor by constructing the first order difference 
 
 The factor data and symbol data is stored in the package and can be loaded as follows
 
-```{r load-data-fmmc, cache=FALSE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
+```{r load-data-fmmc, results='hide', warning=FALSE, error=FALSE, message=FALSE}
 
 data("missingdata")
 data("factordata")
@@ -167,8 +169,9 @@ data("factordata")
 
 Let us consider a portfolio of 3 stocks $\texttt{LNKD, V, LAZ}$  all of which have different return histories. We need to align these series to the monthly factor data. The alignment can be done as follows
 
-```{r align, cache=FALSE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
-symbols <- c('LNKD', 'V', 'LAZ')
+```{r align, results='hide', warning=FALSE, error=FALSE, message=FALSE}
+symbols <- c('LNKD', 'V', 'YHOO')
+symdata <- missingdata["2007-04-01/2014-12-31",symbols]
 symdata <- symdata["2007-04-01/2014-12-31",symbols]
 
 dates.sym.monthly <- format(index(symdata), "%Y%m")
@@ -192,7 +195,7 @@ We can construct the covariance matrix as follows. Additional arguments can be p
 
 ```{r FMMC, warning=FALSE, error=FALSE, message=FALSE}
 
-rets <- fmmc.cov(symdata, factor.data, parallel = FALSE)
+fmmc <- fmmc.cov(symdata, factor.data, parallel = FALSE)
 
 ```
 
@@ -201,7 +204,7 @@ We can also compare the performace of FMMC with the naive approach of constructi
 
 ```{r fmmc-plot, , fig.width=10, fig.height=6}
 
-compare.cov(cov(rets),cov(na.omit(symdata)),c("FMMC","Truncated"))
+compare.cov(fmmc, cov(na.omit(symdata)),c("FMMC","Truncated"))
 
 ```
 \
@@ -215,7 +218,7 @@ For a random matrix all eigenvaules will be within the range. The variance of th
 
 
 ## Data
-To demonstrate the use of Random Matrix theory we will choose the $\texttt{largesymdata}$ object which contains daily returns for ow Jones 30 index for a year.
+To demonstrate the use of Random Matrix theory we will choose the $\texttt{dow30data}$ object which contains daily returns for ow Jones 30 index for a year.
 
 ```{r rmt-load}
 
@@ -237,7 +240,7 @@ estRMT(R, Q =NA, cutoff = c("max", "each"),
 This function takes serveral options, details of which can be found on the man page. However, in the simplest case we can pass a timeseries object of assets. In such a case we will assume that we know the largest eigenvalue and fit the distribution to the remaining eigenvalues. Values less than the cutoff are replaced with an average value.
 
 ```{r rmt-est, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
-model <- estRMT(largesymdata, parallel=FALSE)
+model <- estRMT(dow30data, parallel=FALSE)
 
 ```
    
@@ -263,12 +266,12 @@ library(ROI)
 library(ROI.plugin.quadprog)
 
 ```
-We will now demonstrate the use of RMT with a more elaborate example. Let us build a custom portfolio stratey using all 30 stocks from the Daily Dow Jones 30 index. We will used $\texttt{largesymdata}$ object that contains daily data from 04/02/2014 to 07/10/2015. We will use the $\texttt{PortfolioAnalytics}$ package for building the portfolio and backtesting  the strategy. 
+We will now demonstrate the use of RMT with a more elaborate example. Let us build a custom portfolio stratey using all 30 stocks from the Daily Dow Jones 30 index. We will use $\texttt{dow30data}$ object that contains daily data from 04/02/2014 to 07/10/2015. We will use the $\texttt{PortfolioAnalytics}$ package for building the portfolio and backtesting  the strategy. 
 
 
 Let us first construct a custom moment function where covariance is built by denoising using Random Matrix Theory. We assume no third/fourth order effects.
 
-```{r rmt-custommoment, cache=TRUE}
+```{r rmt-custommoment}
 
 custom.portfolio.moments <- function(R, portfolio) {
   momentargs <- list()
@@ -284,9 +287,9 @@ custom.portfolio.moments <- function(R, portfolio) {
 
 We will construct a portfolio with the following specficatiion. No short sales are allowed. All cash needs to be invested at all times. As our objective, we will seek to maximize the quadratic utility which maximizes returns while controlling for risk. 
 
-```{r rmt-portfoliospec, cache=TRUE}
+```{r rmt-portfoliospec}
 
-pspec.lo <- portfolio.spec(assets = colnames(largesymdata))
+pspec.lo <- portfolio.spec(assets = colnames(dow30data))
 
 #long-only
 pspec.lo <- add.constraint(pspec.lo, type="full_investment")
@@ -300,16 +303,16 @@ pspec.lo <- add.objective(portfolio=pspec.lo, type="risk", name="var")
 
 Now lets backtest our strategy using an ordinary covariance matrix and a covariance matrix build by denoising using Random Matrix theory. 
 
-```{r rmt-run, cache=TRUE, warning=FALSE, error=FALSE, message=FALSE}
+```{r rmt-run, warning=FALSE, error=FALSE, cache=TRUE , message=FALSE}
 
 opt.ordinary <- 
-  optimize.portfolio.rebalancing(largesymdata, pspec.lo, 
+  optimize.portfolio.rebalancing(dow30data, pspec.lo, 
                                  optimize_method="quadprog",
                                  rebalance_on="months", 
                                  training_period=120,
                                  trailing_periods=120)
 opt.rmt <- 
-  optimize.portfolio.rebalancing(largesymdata, pspec.lo, 
+  optimize.portfolio.rebalancing(dow30data, pspec.lo, 
                                  optimize_method="quadprog",
                                  momentFUN = "custom.portfolio.moments",
                                  rebalance_on="months", 
@@ -320,13 +323,13 @@ opt.rmt <-
 
 We can now extract weights and build cummulative returns using the $\texttt{PerformanceAnalytics}$ package.
 
-```{r rmt-results, cache=TRUE}
+```{r rmt-results}
 
 ordinary.wts <- na.omit(extractWeights(opt.ordinary))
-ordinary <- Return.rebalancing(R=largesymdata, weights=ordinary.wts)
+ordinary <- Return.rebalancing(R=dow30data, weights=ordinary.wts)
 
 rmt.wts <- na.omit(extractWeights(opt.rmt))
-rmt <- Return.rebalancing(R=largesymdata, weights=rmt.wts)
+rmt <- Return.rebalancing(R=dow30data, weights=rmt.wts)
 
 strat.rets <- merge.zoo(ordinary,rmt)
 colnames(strat.rets) <- c("ordinary", "rmt")
@@ -347,6 +350,183 @@ charts.PerformanceSummary(strat.rets,wealth.index = T,
 
 ```
 \
+
+
+# Independent Switching Dynamic Conditional Correlation Model
+
+The IS-DCC model from `r `has the same structure as the DCC model but it lets the constants be state dependent and hence makes it possible to model
+time-varying correlation with different dynamics for each regime. The model runs a separate DCC process for each state in parallel and avoids the path dependency problem and makes the model tractable.
+
+Fitting the IS-DCC model to data corresponds to a two step process, where the first step is to estimate the volatility of each univariate time series separately using GARCH(1,1), as in the case for DCC. The second step corresponds to estimating the DCC(1,1) parameters for each state and estimating the transition probabilities corresponding to the Hidden Markov Model. This is done by maximising the log likelihood using the Expectation Maximization (EM) algorithm.
+
+## Data
+To demonstrate the use of IS-DCC we will choose the $\texttt{etfdata}$ object which contains daily returns for 9 exchange traded funds (SPDRs) that represent the U.S. stock market from S&P, i.e. XLE, XLY, XLP, XLF, XLV,XLI, XLB, XLK and XLU. The Sector SPDRs divide the S&P 500 into nine sector index funds. The returns on assets are considered to be dependent on regimes which are in turn defined by market conditions. Daily returns on the ETFs from January 1, 2008 to December 31, 2010 were retrieved from Yahoo Finance.
+
+
+```{r isdcc-load}
+
+data("etfdata")
+
+```
+
+## Covariance estimation
+
+To fit a covariance matrix we can use the $\texttt{isdccfit}$ fucntion.
+
+```{r, eval=FALSE}
+
+isdccfit(R, numRegimes, transMatbounds = c(2,10), 
+         dccBounds = c(0,1), w = NA, ...) 
+
+```
+This function takes serveral options, details of which can be found on the man page. However, in the simplest case we can pass a timeseries object of assets and the number of regimes that we want to fit to the data. Since we use Expectation Maximization to fit data, convergence can be slow and additional parameters must be passed to the optimizer to speed by computation. We use $\texttt{DEoptim}$ to fit paramters. If no control paramters are passed we use the $\texttt{lhs}$ package to generate initial paramters uniformaly in the paramters space and pass it as initial population to $\texttt{DEoptim}$. 
+
+Let us fit a simple model for demonstration that fits three regimes to the data. 
+
+```{r isdcc-est, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+model <- isdccfit(etfdata, numRegimes=3, paralletType = 0, itermax = 5)
+
+```
+   
+## Plots
+
+Once we have fitted a model we can also investigate the regimes by examining the implied states using the $\texttt{plot}$ function. The plot function takes in a fitted model and and the type of plot. It then plots either the implied states or the implied probability of regimes.
+
+```{r isdcc-plot, fig.width=8, fig.height=4, fig.keep='last'}
+
+plot(model)
+
+```
+\
+
+
+## Evaluation
+
+We will now build a custom portfolio stratey using $\texttt{etfdata}$. We will use a simple strategy such that at each period we will choose the covariance matrix from the regime which has the highest probability of occurance. We will benchmark the strategy against the ordinary DCC model that does not use regimes. 
+
+Let us first construct two custom moment functions where covariance is built using DCC and IS-DCC
+
+```{r isdcc-custommoment}
+
+library(rmgarch)
+
+custom.portfolio.moments <- function(R, portfolio) {
+  
+  momentargs <- list()
+  momentargs$mu  <-  matrix(as.vector(apply(R,2, "mean")), ncol = 1)
+  
+  result <- isdccfit(R, numRegimes = 3, itermax=100)
+  ldate <- as.character(tail(index(R),1))
+  maxProbIndex <- which.max(result$filtProb[ldate,])
+  momentargs$sigma  <-  result$cov[[ldate]][[maxProbIndex]]
+  
+  momentargs$m3 <- matrix(0, nrow=ncol(R), ncol=ncol(R)^2)
+  momentargs$m4 <- matrix(0, nrow=ncol(R), ncol=ncol(R)^3)
+  
+  return(momentargs)
+}
+
+custom.portfolio.moments.dcc <- function(R, portfolio) {
+  
+  momentargs <- list()
+  momentargs$mu  <-  matrix(as.vector(apply(R,2, "mean")), ncol = 1)
+  
+  garch11.spec <- ugarchspec(mean.model = list(armaOrder = c(0,0)), 
+                            variance.model = list(garchOrder = c(1,1)
+                                          , model = "sGARCH"), 
+                            distribution.model = "norm")
+  
+  dcc.garch11.spec <- dccspec(uspec = multispec( replicate(ncol(R), 
+                                                  garch11.spec) ), 
+                             dccOrder = c(1,1), distribution = "mvnorm")
+  
+  dcc.fit <- dccfit(dcc.garch11.spec, data = R)
+  momentargs$sigma  <-  rcov(dcc.fit)[,,as.character(tail(index(R),1))]
+  
+  momentargs$m3 <- matrix(0, nrow=ncol(R), ncol=ncol(R)^2)
+  momentargs$m4 <- matrix(0, nrow=ncol(R), ncol=ncol(R)^3)
+  
+  return(momentargs)
+}
+
+```
+
+We will construct a portfolio with the following specficatiion. No short sales are allowed. All cash needs to be invested at all times. As our objective, we will seek to maximize the quadratic utility which maximizes returns while controlling for risk. 
+
+```{r isdcc-portfoliospec}
+
+pspec.lo <- portfolio.spec(assets = colnames(etfdata))
+
+#long-only
+pspec.lo <- add.constraint(pspec.lo, type="full_investment")
+pspec.lo <- add.constraint(pspec.lo, type="long_only")
+
+pspec.lo <- add.objective(portfolio=pspec.lo, type="return", name="mean")
+pspec.lo <- add.objective(portfolio=pspec.lo, type="risk", name="var")
+
+```
+
+Now lets backtest our strategy using an ordinary covariance matrix and covariance matrices built using DCC and IS-DCC models.
+
+```{r isdcc-run, warning=FALSE, error=FALSE , message=FALSE}
+
+opt.ordinary <- 
+  optimize.portfolio.rebalancing(etfdata, pspec.lo, 
+                                 optimize_method="quadprog",
+                                 rebalance_on="months", 
+                                 training_period=120,
+                                 trailing_periods=120)
+
+opt.dcc <- 
+  optimize.portfolio.rebalancing(etfdata, pspec.lo, 
+                                  optimize_method="quadprog",
+                                  momentFUN = "custom.portfolio.moments.dcc",
+                                  rebalance_on="months",
+                                  training_period=120,
+                                  trailing_periods=120)
+
+opt.isdcc <- 
+  optimize.portfolio.rebalancing(etfdata, pspec.lo, 
+                                          optimize_method="quadprog",
+                                          momentFUN = "custom.portfolio.moments",
+                                          rebalance_on="months",
+                                          training_period=120,
+                                          trailing_periods=120)
+```
+
+
+We can now extract weights and build cummulative returns using the $\texttt{PerformanceAnalytics}$ package.
+
+```{r isdcc-results}
+
+ordinary.wts <- na.omit(extractWeights(opt.ordinary))
+ordinary <- Return.rebalancing(R=etfdata, weights=ordinary.wts)
+
+dcc.wts <- na.omit(extractWeights(opt.dcc))
+dcc <- Return.rebalancing(R=etfdata, weights=dcc.wts)
+
+isdcc.wts <- na.omit(extractWeights(opt.isdcc))
+isdcc <- Return.rebalancing(R=etfdata, weights=isdcc.wts)
+
+strat.rets <- merge.zoo(merge.zoo(ordinary, dcc), isdcc)
+colnames(strat.rets) <- c("ordinary", "dcc", "isdcc")
+
+```
+
+In the chart below we can see that  the cumulative returns generated using our strategy with
+IS-DCC model are superior to ordinary returns as well as returns by the DCC model. This suggests that there is value in assuming the presence of regimes in data and exploring the idea further while optimizing portfolios.
+
+```{r isdccstratplots}
+charts.PerformanceSummary(strat.rets,wealth.index = T,
+                          colorset = c("red","blue","green"), 
+                          main=paste(c("Comparison of Portflio ",
+                                     "Performance using two ",
+                                     "different covariance matrices"),
+                                     collapse=""), cex.legend = 1.3, 
+                          cex.axis = 1.3, legend.loc = "topright") 
+```
+\
+
 
 
 #References

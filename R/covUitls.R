@@ -17,9 +17,15 @@
 #' @export
 #' 
 compare.cov <- function(cov1, cov2, labels, corr=FALSE) {
+  
     if (length(labels) != 2) stop("There must be two labels")
     
-    complist <- list(list(corr=corr, cov=cov1), list(corr=corr, cov=cov2))
+    if (!all(dim(cov1) == dim(cov2))) stop("Matrix dimensions are unequal")
+    if(nrow(cov1) != ncol(cov1)) stop("Matrix is not square")
+    if(nrow(cov1) == 2) stop("Need more than 2 dims")
+  
+    complist <- list(list(corr=corr, cov=cov1), 
+                     list(corr=corr, cov=cov2))
     names(complist) <- labels
     ellipsesPlot.covfm(complist)
 }

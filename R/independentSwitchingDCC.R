@@ -139,12 +139,10 @@
   P <- .TransitionProb(taus, numRegimes); T <- nrow(returns)
   filtprob <- .initFilterProb(P); loglik <- 0
   likelihood <- rep(NA, numRegimes) 
-  
-  dates <- as.character(index(returns))
-  Cov <- replicate(T,list()); names(Cov) <- dates
+
+  Cov <- replicate(T,list())
   
   prob_t <- matrix(NA, nrow = T, ncol = numRegimes )
-  rownames(prob_t) <- dates
   prob_t[1, ] <- filtprob
   
   for(t in 2:T) {
@@ -161,7 +159,7 @@
       likelihood[i] <- dmvnorm(returns[t,], sigma = H)
       
       rownames(H) <- colnames(H) <- colnames(returns)
-      Cov[[dates[t]]][[i]] <- H
+      Cov[[t]][[i]] <- H
     }
     
     mixLik <- as.numeric(
@@ -310,18 +308,22 @@ isdccfit <- function(R, numRegimes,
   names(taus) <- sapply(1:length(taus), function(i) paste("tau",i,sep=""))
   
   theta1 <- params[(1 + numRegimes*(numRegimes-1)):(numRegimes*numRegimes)];
-  names(theta1) <- sapply(1:length(taus), function(i) paste("theta1_",i,sep=""))
+  names(theta1) <- sapply(1:length(theta1), function(i) paste("theta1_",i,sep=""))
   
   theta2 <- params[(1+numRegimes*numRegimes):length(params)]
-  names(theta2) <- sapply(1:length(taus), function(i) paste("theta2_",i,sep=""))
+  names(theta2) <- sapply(1:length(theta2), function(i) paste("theta2_",i,sep=""))
   
   result <- 
     .helper.loglik(taus, theta1, theta2, R, sigma_t, 
                    numRegimes, Q0, Q.bar)
   
-  fit <- list(logLik = result$loglik, filtProb = result$filtProb, 
+  dates <- as.character(index(R))
+  prob <- result$filtProb; rownames(prob) <- dates
+  cov <- result$Cov; names(cov) <- dates
+  
+  fit <- list(logLik = result$loglik, filtProb = prob, 
        param = list(garch = garchParams, ISDCCParams = c(taus, theta1, theta2)),
-       cov = result$Cov)
+       cov = cov)
   
   class(fit) <- "isdcc"
   fit
