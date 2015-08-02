@@ -58,7 +58,7 @@ plot.RMT <- function(x, ...){
 #' 
 #' @importFrom Matrix nearPD
 #' @importFrom RMTstat dmp qmp
-#' @importFrom foreach "%dopar%" foreach
+#' @importFrom foreach "%dopar%" foreach registerDoSEQ
 #' @importFrom parallel detectCores stopCluster
 #' @importFrom snow makeCluster clusterEvalQ clusterExport
 #' @importFrom doSNOW registerDoSNOW

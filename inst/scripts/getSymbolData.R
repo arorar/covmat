@@ -1,6 +1,26 @@
 rm(list = ls())
 
 library(quantmod)
+library(xts)
+
+#' Function to simulate data for RMT
+#' 
+#' @param N number of observations
+#' @param p number of variables
+#' @param seed random seed
+#' 
+#' @author Rohit Arora
+#' 
+sim.RMTdata <- function(N = 500, p = 100, seed = 9999) {
+  set.seed(seed)
+  M <- matrix(rnorm(N*p), nrow = N, ncol = p)
+  
+  to <- Sys.Date(); from <- Sys.Date() - N + 1
+  dates <- seq(from = from, to = to, by = "days")
+  xts(M, order.by = dates)
+}
+
+
 
 #' Function to download closing symbol data. This function must be used to download
 #' and store data in the data folder when symbol list is updated or dates change. 
@@ -29,12 +49,18 @@ get.closing.symdata <- function(symbols, from, to=Sys.Date(), returns=TRUE,
   if( class( d ) == "try-error" || is.na( d ) ) stop( "Invalid end date" )  
   
 
-  getSymbols(symbols, adjust=TRUE, from = from, to = to)
+  getSymbols(symbols, from = from, to = to)
   
   frequency = frequency[1]
   
   for(symbol in symbols) {
-    temp0  <- temp <- adjustOHLC(get(symbol), symbol.name=symbol)
+    
+    if(symbol == "LOW") 
+      colnames(LOW) <- gsub("^LOW\\.","",colnames(LOW))
+    
+    val <- get(symbol)
+    
+    temp0  <- temp <- adjustOHLC(val, symbol.name=symbol)
     if(frequency == "monthly") {
       temp    <- to.monthly(temp0, indexAt='endof', drop.time=FALSE)
       colnames(temp) <- colnames(temp0)      
@@ -52,7 +78,8 @@ menu <- function() {
   print("1 . Download symbols for factor data")  
   print("2 . Download symbols for filtering using RMT")  
   print("3 . Download symbols for Independent Switching DCC")  
-  print("4 . Exit")  
+  print("4 . Simulate data for Spiked Covariance Model")  
+  print("5 . Exit")  
 }
 
 while(TRUE) {
@@ -90,6 +117,11 @@ while(TRUE) {
            break
          },
          "4" = {
+           rmtdata <- sim.RMTdata()
+           l <- ls(); rm(list = c(l[l != "rmtdata"],"l"))
+           break
+         },
+         "5" = {
             print('Exiting...')
            break
          },

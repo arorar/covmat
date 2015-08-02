@@ -304,7 +304,10 @@ isdccfit <- function(R, numRegimes=NA,
                  returns = R, Sigma = sigma_t, numRegimes = numRegimes, 
                  Q=Q0, Q.bar = Q.bar, control = initParams$add.args)
   
-  if (isParallel) stopCluster(cl)
+  if (isParallel)  { 
+    stopCluster(cl)
+    registerDoSEQ()
+  }
   
   params <- fit$optim$bestmem
   

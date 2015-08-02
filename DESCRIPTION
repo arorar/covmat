@@ -24,12 +24,11 @@ Imports:
   quantmod,
   reshape2,
   CerioliOutlierDetection,
-  RMTstat,
   Matrix,
   parallel,
   snow,
   doSNOW,
   fGarch, 
   lhs
-Depends: mvtnorm 
+Depends: mvtnorm, RMTstat
 NeedsCompilation: yes

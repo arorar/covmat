@@ -36,3 +36,11 @@ NULL
 #' @source Yahoo finance
 #' @usage dow30data
 NULL
+
+#' @name rmtdata
+#' @title Simulated data for Spiked Covarianve Model
+#' @description Contains large data for 500 observations and 100 variables based
+#'                on standard normal independent random variables
+#' @docType data
+#' @usage rmtdata
+NULL
