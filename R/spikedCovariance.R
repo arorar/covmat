@@ -1,3 +1,43 @@
+#' Table 2
+#' 
+#' @details
+#' Table 2
+#' 
+Frobenius.1 <- function(lambda, gamma) {
+  c <- c.lambda(lambda, gamma)
+  s <- s.lambda(lambda, gamma)
+  lambda*c^2 + s^2
+}
+
+#' Equation 4.4
+#' 
+#' @details
+#' Equation 4.4
+#' 
+ell.lambda <- function(lambda, gamma) {
+  temp <- lambda + 1 - gamma
+  0.5*(temp + sqrt(temp^2 - 4*lambda))
+}
+
+#' Equation 1.2
+#' 
+#' @details
+#' Equation 1.2
+#' 
+c.lambda <- function(lambda, gamma) {
+  temp <- ell.lambda(lambda, gamma)
+  sqrt((1 - gamma/(temp - 1)^2)/(1 + gamma/(temp - 1)))
+}
+
+#' Equation 6.3
+#' 
+#' @details
+#' Equation 1.2
+#' 
+s.lambda <- function(lambda, gamma) {
+  sqrt(1 - (c.lambda(lambda, gamma))^2)
+}
+
 #' Likelihood of Marchenko–Pastur distribution distribution
 #' 
 #' @details
@@ -54,17 +94,32 @@
 #' (Donoho, Gavish, and Johnstone, 2013)
 #' 
 #' @param R xts object of asset returns
+#' @param norm Type of matrix norm that must be calculated. Defaults to Frobenius
+#' @param pivot takes values from 1...7. Details can be found in the paper
+#' @param statistical Stein/Entropy/Bhattarcharya/Frechet. Default is set to NA.
+#'        when a valid value is set norm and pivot values are ignored
 #' 
 #' @author Rohit Arora
 #' 
 #' @export
 #' 
 #' 
-estSpikedCovariance <- function(R, ...) {
+estSpikedCovariance <- function(R, norm = c("Frobenius", "Operator", "Nuclear"),
+                                pivot = 1, statistical = NA) {
   
   .data <- if(is.xts(R)) coredata(R) else as.matrix(R)
   T <- nrow(.data); M <- ncol(.data) 
+
   if (T < M) stop("Does not work when T < M")
+  
+  norm <- norm[1]
+  if (!norm %in% c("Frobenius", "Operator", "Nuclear"))
+    stop("Invalid norm value")
+  
+  if (pivot < 0 || pivot > 7) stop("Invalid pivot selected")
+  if(!is.na(statistical) && 
+     !statistical %in% c("Stein","Entropy","Bhattarcharya","Frechet"))
+    stop("Invalid statistical parameter selected")
   
   S <- cov(.data)
   eigen <- eigen(S, symmetric=T)
@@ -74,4 +129,18 @@ estSpikedCovariance <- function(R, ...) {
   fit <- .getMPfit(lambdas)
   gamma <- fit$gamma; lambda.max <- fit$lambda.max; spikes <- fit$spikes
   
+  spiked.lambdas <- lambdas[lambdas > lambda.max]
+  
+  if(is.na(statistical)) {
+    fun.name <- paste(norm,".",pivot,sep="")
+    loss.func <- match.fun(fun.name)
+    formals(loss.func)$gamma <- gamma
+    spiked.lambdas <- sapply(spiked.lambdas, loss.func)
+    
+    lambdas[lambdas > lambda.max] <- spiked.lambdas
+    lambdas[lambdas <= lambda.max] <- 1
+  }
+  
+  C <- eigen$vectors %*% diag(lambdas) %*% t(eigen$vectors)
+  scale.factor*C
 }
