@@ -8,8 +8,9 @@
 #' @param lambda sample eigenvalue
 #' @param gamma  fitted value of variables/observations
 #' @param type   combination of (pivot+norm)/(statistical loss)
+#' @param lambda sample eigenvalue to be shrunk
 #' 
-.shrink.eigen2 <- function(lambda, c, s, type) {
+.shrink.eigen2 <- function(ell, c, s, type, lambda) {
   
   temp <- unlist(strsplit(type,"\\."))
   
@@ -23,7 +24,7 @@
   
   .obj <- function(eta) {
     
-    A <- matrix(c(lambda, 0, 0, 1), nrow=2, byrow = TRUE)
+    A <- matrix(c(ell, 0, 0, 1), nrow=2, byrow = TRUE)
     B <- matrix(c(1 + (eta -1)*c^2, (eta -1)*c*s, 
                   (eta -1)*c*s, 1 + (eta -1)*s^2), nrow=2, byrow = TRUE)
   
@@ -39,12 +40,12 @@
       
       if (mnorm == "Frobenius") norm(M, type = "F")
       else if (mnorm == "Operator") sqrt(eigen(M%*%t(M))$values[1])
-      else if (mnorm == "Nuclear") sum(diag(sqrt(t(M) %*% M)))  
+      else if (mnorm == "Nuclear") sum(sqrt(diag(t(M) %*% M)))  
     }
   }
   
   fit <- DEoptim(fn = .obj, 
-                 lower=1, upper = 500,
+                 lower=1, upper = lambda,
                  control = list(itermax = 500, trace = 0))  
   
   fit$optim$bestmem
@@ -61,38 +62,39 @@
 #' 
 .shrink.eigen <- function(lambda, gamma, type) {
   
-  c <- .c.lambda(lambda, gamma)
-  s <- .s.lambda(lambda, gamma)
+  ell <- .ell.lambda(lambda, gamma)
+  c <- .c.ell(lambda, gamma)
+  s <- .s.ell(lambda, gamma)
   
-  if (type == "Frobenius.1") lambda*c^2 + s^2
-  else if (type == "Frobenius.2") lambda/(c^2 + lambda*s^2)
-  else if (type == "Frobenius.3") (lambda*c^2 + lambda^2*s^2)/(c^2 + lambda^2*s^2)
-  else if (type == "Frobenius.4") (lambda^2*c^2 + s^2)/(lambda*c^2 + s^2)
-  else if (type == "Frobenius.5") .shrink.eigen2(lambda, c, s, type)
-  else if (type == "Frobenius.6") c^2*(lambda-1)/(c^2 + lambda*s^2)^2
-  else if (type == "Frobenius.7") .shrink.eigen2(lambda, c, s, type)
+  if (type == "Frobenius.1") ell*c^2 + s^2
+  else if (type == "Frobenius.2") ell/(c^2 + ell*s^2)
+  else if (type == "Frobenius.3") (ell*c^2 + ell^2*s^2)/(c^2 + ell^2*s^2)
+  else if (type == "Frobenius.4") (ell^2*c^2 + s^2)/(ell*c^2 + s^2)
+  else if (type == "Frobenius.5") .shrink.eigen2(ell, c, s, type, lambda)
+  else if (type == "Frobenius.6") c^2*(ell-1)/(c^2 + ell*s^2)^2
+  else if (type == "Frobenius.7") .shrink.eigen2(ell, c, s, type, lambda)
   
-  else if (type == "Operator.1") lambda
-  else if (type == "Operator.2") lambda
-  else if (type == "Operator.3") .shrink.eigen2(lambda, c, s, type)
-  else if (type == "Operator.4") .shrink.eigen2(lambda, c, s, type)
-  else if (type == "Operator.5") .shrink.eigen2(lambda, c, s, type)
-  else if (type == "Operator.6") (lambda-1)/(c^2 + lambda*s^2)
-  else if (type == "Operator.7") .shrink.eigen2(lambda, c, s, type)
+  else if (type == "Operator.1") ell
+  else if (type == "Operator.2") ell
+  else if (type == "Operator.3") .shrink.eigen2(ell, c, s, type, lambda)
+  else if (type == "Operator.4") .shrink.eigen2(ell, c, s, type, lambda)
+  else if (type == "Operator.5") .shrink.eigen2(ell, c, s, type, lambda)
+  else if (type == "Operator.6") (ell-1)/(c^2 + ell*s^2)
+  else if (type == "Operator.7") .shrink.eigen2(ell, c, s, type, lambda)
   
-  else if (type == "Nuclear.1") max(1, 1 + (lambda -1)*(1 - 2*s^2))
-  else if (type == "Nuclear.2") max(1, lambda/(c^2 + (2*lambda -1)*s^2))
-  else if (type == "Nuclear.3") max(1, lambda/(c^2 + lambda^2*s^2))
-  else if (type == "Nuclear.4") max(1, (lambda^2*c^2 + s^2)/lambda)
-  else if (type == "Nuclear.5") .shrink.eigen2(lambda, c, s, type)
-  else if (type == "Nuclear.6") max(1, (lambda-(lambda-1)^2*c^2*s^2)/(c^2 + lambda*s^2)^2)
-  else if (type == "Nuclear.7") .shrink.eigen2(lambda, c, s, type)
+  else if (type == "Nuclear.1") max(1, 1 + (ell -1)*(1 - 2*s^2))
+  else if (type == "Nuclear.2") max(1, ell/(c^2 + (2*ell -1)*s^2))
+  else if (type == "Nuclear.3") max(1, ell/(c^2 + ell^2*s^2))
+  else if (type == "Nuclear.4") max(1, (ell^2*c^2 + s^2)/ell)
+  else if (type == "Nuclear.5") .shrink.eigen2(ell, c, s, type, lambda)
+  else if (type == "Nuclear.6") max(1, (ell-(ell-1)^2*c^2*s^2)/(c^2 + ell*s^2)^2)
+  else if (type == "Nuclear.7") .shrink.eigen2(ell, c, s, type, lambda)
 
-  else if (type == "Stein") lambda/(c^2 + lambda*s^2)
-  else if (type == "Entropy") lambda*c^2 + s^2
-  else if (type == "Divergence") sqrt((lambda^2*c^2 + lambda*s^2)/(c^2 + lambda*s^2))
-  else if (type == "Affinity") .shrink.eigen2(lambda, c, s, type)
-  else if (type == "Frechet") (sqrt(lambda)*c^2 + s^2)^2
+  else if (type == "Stein") ell/(c^2 + ell*s^2)
+  else if (type == "Entropy") ell*c^2 + s^2
+  else if (type == "Divergence") sqrt((ell^2*c^2 + ell*s^2)/(c^2 + ell*s^2))
+  else if (type == "Affinity") .shrink.eigen2(ell, c, s, type, lambda)
+  else if (type == "Frechet") (sqrt(ell)*c^2 + s^2)^2
   
   else NA
 }
@@ -120,9 +122,9 @@
 #' @param gamma  fitted value of variables/observations
 #' 
 #' 
-.c.lambda <- function(lambda, gamma) {
-  temp <- .ell.lambda(lambda, gamma)
-  sqrt((1 - gamma/(temp - 1)^2)/(1 + gamma/(temp - 1)))
+.c.ell <- function(lambda, gamma) {
+  ell <- .ell.lambda(lambda, gamma)
+  sqrt((1 - gamma/(ell - 1)^2)/(1 + gamma/(ell - 1)))
 }
 
 #' Equation 6.3
@@ -133,8 +135,8 @@
 #' @param lambda sample eigenvalue
 #' @param gamma  fitted value of variables/observations
 #' 
-.s.lambda <- function(lambda, gamma) {
-  sqrt(1 - (c.lambda(lambda, gamma))^2)
+.s.ell <- function(lambda, gamma) {
+  sqrt(1 - (.c.ell(lambda, gamma))^2)
 }
 
 #' Likelihood of Marchenko–Pastur distribution distribution
@@ -172,18 +174,25 @@
 #' variance
 #' 
 #' @param lambdas eigenvalues of the sample covariance matrix
+#' @param gamma   ratio of varibales/observations
+#' @param numOfSpikes number of spikes in the spike covariance model
 #' 
-.getMPfit <- function(lambdas) {
+.getMPfit <- function(lambdas, gamma, numOfSpikes) {
   
-  lambda.max <- lambdas[which.max(lambdas <= 1) - 1]
-  lower <- 0; upper <- (sqrt(lambda.max) - 1)^2
-  
-  fit <- DEoptim(fn = .neg.mpLogLik, 
-               lower=lower, upper = upper,
-               control = list(itermax = 500, trace = 0),
-               lambdas = lambdas)  
+  if(is.na(gamma) && is.na(numOfSpikes)) {
+    lambda.min <- min(lambdas)
+    lower <- 0; upper <- 1
     
-  gamma <- fit$optim$bestmem
+    fit <- DEoptim(fn = .neg.mpLogLik, 
+                   lower=lower, upper = upper,
+                   control = list(itermax = 500, trace = 0),
+                   lambdas = lambdas)  
+    
+    gamma <- fit$optim$bestmem  
+  } else if(!is.na(numOfSpikes)) {
+    gamma <- (sqrt(lambdas[numOfSpikes]) - 1)^2
+  }
+  
   lambda.max <- (1 + sqrt(gamma))^2
   spikes <- length(lambdas[lambdas > lambda.max])
   list(spikes = spikes, gamma = gamma, lambda.max = lambda.max)
@@ -197,6 +206,9 @@
 #' (Donoho, Gavish, and Johnstone, 2013)
 #' 
 #' @param R xts object of asset returns
+#' @param gamma  ratio of varibales/observations. If NA it will be estimated
+#' @param numOfSpikes number of spikes in the spike covariance model. 
+#'        If NA it will estimated. Any gamma values will be ignored and reclculated.
 #' @param norm Type of matrix norm that must be calculated. Defaults to Frobenius
 #' @param pivot takes values from 1...7. Details can be found in the paper
 #' @param statistical Stein/Entropy/Divergence/Affinity/Frechet. Default is set to NA.
@@ -207,14 +219,19 @@
 #' @export
 #' 
 #' 
-estSpikedCovariance <- function(R, norm = c("Frobenius", "Operator", "Nuclear"),
-                                pivot = 1, statistical = NA) {
+estSpikedCovariance <- function(R, gamma = NA, numOfSpikes = NA,
+                                norm = c("Frobenius", "Operator", "Nuclear"),
+                                pivot = 1, statistical = NA,
+                                standardize = TRUE) {
   
   .data <- if(is.xts(R)) coredata(R) else as.matrix(R)
   T <- nrow(.data); M <- ncol(.data) 
 
   if (T < M) stop("Does not work when T < M")
-  
+  if((!is.na(gamma)) && (gamma > 1 || gamma < 0)) stop("Invalid gamma")
+  if(!is.na(gamma) && !is.na(numOfSpikes)) 
+    warning("gamma will be ignored. numOfSpikes will be used to calculate gamma.")
+    
   norm <- norm[1]
   if (!norm %in% c("Frobenius", "Operator", "Nuclear"))
     stop("Invalid norm value")
@@ -227,9 +244,12 @@ estSpikedCovariance <- function(R, norm = c("Frobenius", "Operator", "Nuclear"),
   S <- cov(.data)
   eigen <- eigen(S, symmetric=T)
   lambdas <- eigen$values; scale.factor <- sd(lambdas)
-  lambdas <- lambdas/scale.factor
   
-  fit <- .getMPfit(lambdas)
+  if(standardize) lambdas <- lambdas/scale.factor
+  else if (!abs(scale.factor - 1) < .Machine$double.eps) 
+    stop("Variance of eigenvalues is not 1. Consider standarzdizing")
+  
+  fit <- .getMPfit(lambdas, gamma, numOfSpikes)
   gamma <- fit$gamma; lambda.max <- fit$lambda.max; spikes <- fit$spikes
   
   spiked.lambdas <- lambdas[lambdas > lambda.max]
