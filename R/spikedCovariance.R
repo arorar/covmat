@@ -190,7 +190,7 @@
     
     gamma <- fit$optim$bestmem  
   } else if(!is.na(numOfSpikes)) {
-    gamma <- (sqrt(lambdas[numOfSpikes]) - 1)^2
+    gamma <- (sqrt(lambdas[numOfSpikes+1]) - 1)^2
   }
   
   lambda.max <- (1 + sqrt(gamma))^2
@@ -231,7 +231,10 @@ estSpikedCovariance <- function(R, gamma = NA, numOfSpikes = NA,
   if((!is.na(gamma)) && (gamma > 1 || gamma < 0)) stop("Invalid gamma")
   if(!is.na(gamma) && !is.na(numOfSpikes)) 
     warning("gamma will be ignored. numOfSpikes will be used to calculate gamma.")
-    
+  
+  if ((!is.na(numOfSpikes)) && numOfSpikes > M)  
+    stop("Number of spikes cannot be greater than the number of variables")
+  
   norm <- norm[1]
   if (!norm %in% c("Frobenius", "Operator", "Nuclear"))
     stop("Invalid norm value")
@@ -249,6 +252,9 @@ estSpikedCovariance <- function(R, gamma = NA, numOfSpikes = NA,
   else if (!abs(scale.factor - 1) < .Machine$double.eps) 
     stop("Variance of eigenvalues is not 1. Consider standarzdizing")
   
+  if ((!is.na(numOfSpikes)) && lambdas[numOfSpikes] <= 1)  
+    stop("Invalid number of spikes. Consider reducing the number of spikes")
+  
   fit <- .getMPfit(lambdas, gamma, numOfSpikes)
   gamma <- fit$gamma; lambda.max <- fit$lambda.max; spikes <- fit$spikes
   
@@ -256,11 +262,11 @@ estSpikedCovariance <- function(R, gamma = NA, numOfSpikes = NA,
   
   type <- ifelse(is.na(statistical), paste(norm,".",pivot,sep=""), statistical)
 
-  spiked.lambdas <- sapply(spiked.lambdas, 
+  shrunk.lambdas <- sapply(spiked.lambdas, 
                            function(lambda) 
                              .shrink.eigen(lambda, gamma, type))
   
-  lambdas[lambdas > lambda.max] <- spiked.lambdas
+  lambdas[lambdas > lambda.max] <- shrunk.lambdas
   lambdas[lambdas <= lambda.max] <- 1
   
   C <- eigen$vectors %*% diag(lambdas) %*% t(eigen$vectors)
