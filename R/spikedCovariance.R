@@ -150,14 +150,14 @@
 #'          gamma, (variables/observations)
 #' @param lambdas eigenvalues to which the distribution is fitted
 #' 
-.neg.mpLogLik <- function(theta, lambdas) {
+.neg.mpLogLik <- function(theta, lambdas, numOfSpikes) {
   
   gamma <- theta
-  
-  lambda.max <- (1 + sqrt(gamma))^2 
+
+  lambda.max <- lambdas[numOfSpikes + 1]
   lambda.min <- (1 - sqrt(gamma))^2
   
-  lambdas <- lambdas[(lambdas < lambda.max) & (lambdas > lambda.min)]
+  lambdas <- lambdas[(lambdas <= lambda.max) & (lambdas >= lambda.min)]
   if(length(lambdas) == 0) return(.Machine$double.xmax)
   
   val <- sapply(lambdas,     
@@ -176,64 +176,60 @@
 #' @param lambdas eigenvalues of the sample covariance matrix
 #' @param gamma   ratio of varibales/observations
 #' @param numOfSpikes number of spikes in the spike covariance model
+#' @param standardize If true eigenvalues are scaled by the scale.factor
 #' 
-.getMPfit <- function(lambdas, gamma, numOfSpikes) {
+.getMPfit <- function(lambdas, gamma, numOfSpikes, standardize) {
   
-  if(is.na(gamma) && is.na(numOfSpikes)) {
+  if(is.na(gamma)) {
     lambda.min <- min(lambdas)
     lower <- 0; upper <- 1
     
     fit <- DEoptim(fn = .neg.mpLogLik, 
                    lower=lower, upper = upper,
                    control = list(itermax = 500, trace = 0),
-                   lambdas = lambdas)  
+                   lambdas = lambdas, numOfSpikes = numOfSpikes)  
     
     gamma <- fit$optim$bestmem  
-  } else if(!is.na(numOfSpikes)) {
-    gamma <- (sqrt(lambdas[numOfSpikes+1]) - 1)^2
   }
   
+  scale.factor <- lambdas[numOfSpikes + 1]/(1 + sqrt(gamma))^2
+  
+  if(standardize) lambdas <- lambdas/scale.factor
   lambda.max <- (1 + sqrt(gamma))^2
-  spikes <- length(lambdas[lambdas > lambda.max])
-  list(spikes = spikes, gamma = gamma, lambda.max = lambda.max)
+  list(lambda.max = lambda.max, lambdas = lambdas, gamma = gamma)
 } 
 
-#' Eigenvalue shrinkage using Spiked Covariance Model
-#' 
-#' @details
-#' This method takes in data as an xts object. It calculates a sample covariance
-#' matrix and shrinks the eigenvalues based on the procedure listed in
 #' (Donoho, Gavish, and Johnstone, 2013)
 #' 
 #' @param R xts object of asset returns
-#' @param gamma  ratio of varibales/observations. If NA it will be estimated
+#' @param gamma  ratio of varibales/observations. If NA it will be estimated from
+#'                 the data. One can set it to variables/observations
 #' @param numOfSpikes number of spikes in the spike covariance model. 
-#'        If NA it will estimated. Any gamma values will be ignored and reclculated.
+#'                    It is defaulted to 1
 #' @param norm Type of matrix norm that must be calculated. Defaults to Frobenius
 #' @param pivot takes values from 1...7. Details can be found in the paper
 #' @param statistical Stein/Entropy/Divergence/Affinity/Frechet. Default is set to NA.
-#'        when a valid value is set norm and pivot values are ignored
+#'                    when a valid value is set norm and pivot values are ignored
+#' @param standardize If true eigenvalues will be scaled such that the scale 
+#'                    factor becomes 1
 #' 
 #' @author Rohit Arora
 #' 
 #' @export
 #' 
 #' 
-estSpikedCovariance <- function(R, gamma = NA, numOfSpikes = NA,
+estSpikedCovariance <- function(R, gamma = NA, numOfSpikes = 1,
                                 norm = c("Frobenius", "Operator", "Nuclear"),
                                 pivot = 1, statistical = NA,
-                                standardize = TRUE) {
+                                standardize = FALSE) {
   
   .data <- if(is.xts(R)) coredata(R) else as.matrix(R)
   T <- nrow(.data); M <- ncol(.data) 
 
   if (T < M) stop("Does not work when T < M")
-  if((!is.na(gamma)) && (gamma > 1 || gamma < 0)) stop("Invalid gamma")
-  if(!is.na(gamma) && !is.na(numOfSpikes)) 
-    warning("gamma will be ignored. numOfSpikes will be used to calculate gamma.")
   
-  if ((!is.na(numOfSpikes)) && numOfSpikes > M)  
-    stop("Number of spikes cannot be greater than the number of variables")
+  if((!is.na(gamma)) && (gamma > 1 || gamma < 0)) stop("Invalid gamma")
+  if(is.na(numOfSpikes) || (numOfSpikes > M)) stop("Invalid numOfSpikes")
   
   norm <- norm[1]
   if (!norm %in% c("Frobenius", "Operator", "Nuclear"))
@@ -246,29 +242,21 @@ estSpikedCovariance <- function(R, gamma = NA, numOfSpikes = NA,
   
   S <- cov(.data)
   eigen <- eigen(S, symmetric=T)
-  lambdas <- eigen$values; scale.factor <- sd(lambdas)
-  
-  if(standardize) lambdas <- lambdas/scale.factor
-  else if (!abs(scale.factor - 1) < .Machine$double.eps) 
-    stop("Variance of eigenvalues is not 1. Consider standarzdizing")
-  
-  if ((!is.na(numOfSpikes)) && lambdas[numOfSpikes] <= 1)  
-    stop("Invalid number of spikes. Consider reducing the number of spikes")
-  
-  fit <- .getMPfit(lambdas, gamma, numOfSpikes)
-  gamma <- fit$gamma; lambda.max <- fit$lambda.max; spikes <- fit$spikes
+  lambdas <- eigen$values
+  fit <- .getMPfit(lambdas, gamma, numOfSpikes, standardize)
+  lambda.max <- fit$lambda.max; lambdas <- fit$lambdas; gamma <- fit$gamma
   
   spiked.lambdas <- lambdas[lambdas > lambda.max]
   
   type <- ifelse(is.na(statistical), paste(norm,".",pivot,sep=""), statistical)
 
-  shrunk.lambdas <- sapply(spiked.lambdas, 
+  spiked.lambdas <- sapply(spiked.lambdas, 
                            function(lambda) 
                              .shrink.eigen(lambda, gamma, type))
   
-  lambdas[lambdas > lambda.max] <- shrunk.lambdas
+  lambdas[lambdas > lambda.max] <- spiked.lambdas
   lambdas[lambdas <= lambda.max] <- 1
   
   C <- eigen$vectors %*% diag(lambdas) %*% t(eigen$vectors)
-  list(cov = scale.factor*C)
+  list(cov = C)
 }

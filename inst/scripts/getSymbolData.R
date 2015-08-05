@@ -11,13 +11,26 @@ library(xts)
 #' 
 #' @author Rohit Arora
 #' 
-sim.RMTdata <- function(N = 500, p = 100, seed = 9999) {
+sim.RMTdata <- function(N = 200, p = 100, numOfSpikes = 10, seed = 9999) {
+  
+  if(p < numOfSpikes) 
+    stop("Number of spikes must be less than number of variables")
+  
   set.seed(seed)
+  
+  lower <- 20; upper <- 60
+  spikes <- seq(20, 47, length.out = numOfSpikes)
+  E <- diag(spikes)
+
   M <- matrix(rnorm(N*p), nrow = N, ncol = p)
+  C <- cov(M); vec <- eigen(C)$vectors[, 1:numOfSpikes]
+  C <- vec %*% E %*% t(vec) + diag(1, p)
+  
+  data <- rmvnorm(N, sigma = C)
   
   to <- Sys.Date(); from <- Sys.Date() - N + 1
   dates <- seq(from = from, to = to, by = "days")
-  xts(M, order.by = dates)
+  xts(data, order.by = dates)
 }
 
 

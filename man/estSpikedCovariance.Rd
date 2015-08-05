@@ -2,32 +2,32 @@
 % Please edit documentation in R/spikedCovariance.R
 \name{estSpikedCovariance}
 \alias{estSpikedCovariance}
-\title{Eigenvalue shrinkage using Spiked Covariance Model}
+\title{(Donoho, Gavish, and Johnstone, 2013)}
 \usage{
-estSpikedCovariance(R, gamma = NA, numOfSpikes = NA, norm = c("Frobenius",
-  "Operator", "Nuclear"), pivot = 1, statistical = NA, standardize = TRUE)
+estSpikedCovariance(R, gamma = NA, numOfSpikes = 1, norm = c("Frobenius",
+  "Operator", "Nuclear"), pivot = 1, statistical = NA,
+  standardize = FALSE)
 }
 \arguments{
 \item{R}{xts object of asset returns}
 
-\item{gamma}{ratio of varibales/observations. If NA it will be estimated}
+\item{gamma}{ratio of varibales/observations. If NA it will be estimated from
+the data. One can set it to variables/observations}
 
 \item{numOfSpikes}{number of spikes in the spike covariance model.
-If NA it will estimated. Any gamma values will be ignored and reclculated.}
+It is defaulted to 1}
 
 \item{norm}{Type of matrix norm that must be calculated. Defaults to Frobenius}
 
 \item{pivot}{takes values from 1...7. Details can be found in the paper}
 
 \item{statistical}{Stein/Entropy/Divergence/Affinity/Frechet. Default is set to NA.
-       when a valid value is set norm and pivot values are ignored}
+when a valid value is set norm and pivot values are ignored}
+
+\item{standardize}{If true eigenvalues will be scaled such that the scale
+                   factor becomes 1}
 }
 \description{
-Eigenvalue shrinkage using Spiked Covariance Model
-}
-\details{
-This method takes in data as an xts object. It calculates a sample covariance
-matrix and shrinks the eigenvalues based on the procedure listed in
 (Donoho, Gavish, and Johnstone, 2013)
 }
 \author{
