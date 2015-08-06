@@ -153,15 +153,16 @@
 .neg.mpLogLik <- function(theta, lambdas, numOfSpikes) {
   
   gamma <- theta
+  scale.factor <- lambdas[numOfSpikes + 1]/(1 + sqrt(gamma))^2
 
-  lambda.max <- lambdas[numOfSpikes + 1]
-  lambda.min <- (1 - sqrt(gamma))^2
+  lambda.max <- scale.factor*(1 + sqrt(gamma))^2
+  lambda.min <- scale.factor*(1 - sqrt(gamma))^2
   
   lambdas <- lambdas[(lambdas <= lambda.max) & (lambdas >= lambda.min)]
   if(length(lambdas) == 0) return(.Machine$double.xmax)
   
   val <- sapply(lambdas,     
-                function(x) dmp(x,svr = 1/gamma))
+                function(x) dmp(x,svr = 1/gamma, var = scale.factor))
   
   ifelse(is.infinite(-sum(log(val))), .Machine$double.xmax, -sum(log(val)))        
 }
@@ -178,7 +179,7 @@
 #' @param numOfSpikes number of spikes in the spike covariance model
 #' @param standardize If true eigenvalues are scaled by the scale.factor
 #' 
-.getMPfit <- function(lambdas, gamma, numOfSpikes, standardize) {
+.getMPfit <- function(lambdas, gamma, numOfSpikes) {
   
   if(is.na(gamma)) {
     lambda.min <- min(lambdas)
@@ -193,10 +194,15 @@
   }
   
   scale.factor <- lambdas[numOfSpikes + 1]/(1 + sqrt(gamma))^2
+  lambdas <- lambdas/scale.factor
   
-  if(standardize) lambdas <- lambdas/scale.factor
   lambda.max <- (1 + sqrt(gamma))^2
-  list(lambda.max = lambda.max, lambdas = lambdas, gamma = gamma)
+  spikes <- length(lambdas[lambdas > lambda.max])
+  if(spikes != numOfSpikes)
+    stop("Fitting is not right")
+  
+  list(lambda.max = lambda.max, lambdas = lambdas, gamma = gamma, 
+       scale.factor = scale.factor)
 } 
 
 #' (Donoho, Gavish, and Johnstone, 2013)
@@ -210,8 +216,8 @@
 #' @param pivot takes values from 1...7. Details can be found in the paper
 #' @param statistical Stein/Entropy/Divergence/Affinity/Frechet. Default is set to NA.
 #'                    when a valid value is set norm and pivot values are ignored
-#' @param standardize If true eigenvalues will be scaled such that the scale 
-#'                    factor becomes 1
+#' @param fit list with 4 elements, cutoff for the bulk of MP distribution, 
+#'            scaled lambdas, fitted gamma and fitted scaling constant
 #' 
 #' @author Rohit Arora
 #' 
@@ -221,7 +227,7 @@
 estSpikedCovariance <- function(R, gamma = NA, numOfSpikes = 1,
                                 norm = c("Frobenius", "Operator", "Nuclear"),
                                 pivot = 1, statistical = NA,
-                                standardize = FALSE) {
+                                fit = NA) {
   
   .data <- if(is.xts(R)) coredata(R) else as.matrix(R)
   T <- nrow(.data); M <- ncol(.data) 
@@ -243,8 +249,10 @@ estSpikedCovariance <- function(R, gamma = NA, numOfSpikes = 1,
   S <- cov(.data)
   eigen <- eigen(S, symmetric=T)
   lambdas <- eigen$values
-  fit <- .getMPfit(lambdas, gamma, numOfSpikes, standardize)
-  lambda.max <- fit$lambda.max; lambdas <- fit$lambdas; gamma <- fit$gamma
+  if(all(is.na(fit))) fit <- .getMPfit(lambdas, gamma, numOfSpikes)
+  
+  lambda.max <- fit$lambda.max; lambdas <- fit$lambdas; 
+  gamma <- fit$gamma; scale.factor <- fit$scale.factor
   
   spiked.lambdas <- lambdas[lambdas > lambda.max]
   
@@ -257,6 +265,8 @@ estSpikedCovariance <- function(R, gamma = NA, numOfSpikes = 1,
   lambdas[lambdas > lambda.max] <- spiked.lambdas
   lambdas[lambdas <= lambda.max] <- 1
   
-  C <- eigen$vectors %*% diag(lambdas) %*% t(eigen$vectors)
-  list(cov = C)
+  rescaled.lambdas <- scale.factor * lambdas
+  
+  C <- eigen$vectors %*% diag(rescaled.lambdas) %*% t(eigen$vectors)
+  list(cov = C, fit = fit)
 }
