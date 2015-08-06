@@ -5,8 +5,7 @@
 \title{(Donoho, Gavish, and Johnstone, 2013)}
 \usage{
 estSpikedCovariance(R, gamma = NA, numOfSpikes = 1, norm = c("Frobenius",
-  "Operator", "Nuclear"), pivot = 1, statistical = NA,
-  standardize = FALSE)
+  "Operator", "Nuclear"), pivot = 1, statistical = NA, fit = NA)
 }
 \arguments{
 \item{R}{xts object of asset returns}
@@ -24,8 +23,8 @@ It is defaulted to 1}
 \item{statistical}{Stein/Entropy/Divergence/Affinity/Frechet. Default is set to NA.
 when a valid value is set norm and pivot values are ignored}
 
-\item{standardize}{If true eigenvalues will be scaled such that the scale
-                   factor becomes 1}
+\item{fit}{list with 4 elements, cutoff for the bulk of MP distribution,
+           scaled lambdas, fitted gamma and fitted scaling constant}
 }
 \description{
 (Donoho, Gavish, and Johnstone, 2013)

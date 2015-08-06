@@ -177,7 +177,6 @@
 #' @param lambdas eigenvalues of the sample covariance matrix
 #' @param gamma   ratio of varibales/observations
 #' @param numOfSpikes number of spikes in the spike covariance model
-#' @param standardize If true eigenvalues are scaled by the scale.factor
 #' 
 .getMPfit <- function(lambdas, gamma, numOfSpikes) {
   
