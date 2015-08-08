@@ -158,6 +158,9 @@
   lambda.max <- scale.factor*(1 + sqrt(gamma))^2
   lambda.min <- scale.factor*(1 - sqrt(gamma))^2
   
+  spikes <- length(lambdas[lambdas > lambda.max])
+  if(spikes != numOfSpikes) return(.Machine$double.xmax)
+    
   lambdas <- lambdas[(lambdas <= lambda.max) & (lambdas >= lambda.min)]
   if(length(lambdas) == 0) return(.Machine$double.xmax)
   
@@ -186,7 +189,7 @@
     
     fit <- DEoptim(fn = .neg.mpLogLik, 
                    lower=lower, upper = upper,
-                   control = list(itermax = 500, trace = 0),
+                   control = list(itermax = 1000, trace = 0),
                    lambdas = lambdas, numOfSpikes = numOfSpikes)  
     
     gamma <- fit$optim$bestmem  
@@ -198,10 +201,10 @@
   lambda.max <- (1 + sqrt(gamma))^2
   spikes <- length(lambdas[lambdas > lambda.max])
   if(spikes != numOfSpikes)
-    stop("Fitting is not right")
+    browser()
   
   list(lambda.max = lambda.max, lambdas = lambdas, gamma = gamma, 
-       scale.factor = scale.factor)
+       scale.factor = scale.factor, numOfSpikes = numOfSpikes)
 } 
 
 #' (Donoho, Gavish, and Johnstone, 2013)
@@ -215,8 +218,9 @@
 #' @param pivot takes values from 1...7. Details can be found in the paper
 #' @param statistical Stein/Entropy/Divergence/Affinity/Frechet. Default is set to NA.
 #'                    when a valid value is set norm and pivot values are ignored
-#' @param fit list with 4 elements, cutoff for the bulk of MP distribution, 
-#'            scaled lambdas, fitted gamma and fitted scaling constant
+#' @param fit list with 5 elements, cutoff for the bulk of MP distribution, 
+#'            scaled lambdas, fitted gamma and fitted scaling constant,
+#'            numOfSpikes
 #' 
 #' @author Rohit Arora
 #' 
@@ -236,6 +240,13 @@ estSpikedCovariance <- function(R, gamma = NA, numOfSpikes = 1,
   if((!is.na(gamma)) && (gamma > 1 || gamma < 0)) stop("Invalid gamma")
   if(is.na(numOfSpikes) || (numOfSpikes > M)) stop("Invalid numOfSpikes")
   
+  if ("gamma" %in% names(fit) && (!is.na(gamma)) && (fit$gamma != gamma))
+    stop("Conflicting gamma values")
+  
+  if ("numOfSpikes" %in% names(fit) && (!is.na(numOfSpikes)) && 
+      (fit$numOfSpikes != numOfSpikes))
+    stop("Conflicting numOfSpikes values")
+  
   norm <- norm[1]
   if (!norm %in% c("Frobenius", "Operator", "Nuclear"))
     stop("Invalid norm value")
@@ -252,7 +263,7 @@ estSpikedCovariance <- function(R, gamma = NA, numOfSpikes = 1,
   
   lambda.max <- fit$lambda.max; lambdas <- fit$lambdas; 
   gamma <- fit$gamma; scale.factor <- fit$scale.factor
-  
+
   spiked.lambdas <- lambdas[lambdas > lambda.max]
   
   type <- ifelse(is.na(statistical), paste(norm,".",pivot,sep=""), statistical)
@@ -267,5 +278,112 @@ estSpikedCovariance <- function(R, gamma = NA, numOfSpikes = 1,
   rescaled.lambdas <- scale.factor * lambdas
   
   C <- eigen$vectors %*% diag(rescaled.lambdas) %*% t(eigen$vectors)
-  list(cov = C, fit = fit)
+  model <- list(cov = C, data = R, orig.lambdas = eigen$values, pivot = pivot,
+                numOfSpikes = numOfSpikes, norm = norm, new.lambdas = rescaled.lambdas, 
+                dist.fit = fit)
+  
+  class(model) <- "spikedCovariance"
+  model
+}
+
+#' internal function for Eigenvalue plot
+#' 
+#' @details
+#' Compares shrunk eigenvalues against sample eigenvalues
+#' 
+#' @param x model of the type spikedCovariance
+#' @param norm Type of matrix norm that must be calculated. If missing value from
+#'              the model will be used
+#' @param statistical Stein/Entropy/Divergence/Affinity/Frechet. Default is set to NA.
+#'                    when a valid value is set norm and pivot values are ignored
+
+.plot.spikedCovariance <- function(x, norm = NA, statistical = FALSE) {
+  
+  data <- x$data; gamma <- x$dist.fit$gamma; numOfSpikes <- x$numOfSpikes 
+  if(is.na(norm)) norm <- x$norm
+
+  if (!norm %in% c("Frobenius", "Operator", "Nuclear"))
+    stop("Invalid norm value")
+
+  if(statistical) norm <- "Statistical"
+  
+  loss <- c("Stein","Entropy","Divergence","Affinity","Frechet")
+  
+  numLosses <- if(statistical) length(loss) else 7
+  E <- matrix(NA, nrow = ncol(data), ncol = numLosses)
+  
+  for(i in 1:numLosses) {
+    C <- 
+      if (!statistical) {
+        estSpikedCovariance(data, gamma = gamma, numOfSpikes = numOfSpikes, 
+                               norm = norm, pivot = i, fit = x$dist.fit)
+      } else {
+        estSpikedCovariance(data, gamma = gamma, numOfSpikes = numOfSpikes, 
+                               statistical = loss[i], fit = x$dist.fit)
+      }
+    
+    E[,i] <- C$new.lambdas
+  }
+  
+  colnames(E) <- if (!statistical) paste("pivot",1:7,sep = ".") else loss
+  
+  df <- data.frame(sample = x$orig.lambdas, E)
+  df <- melt(df, id = "sample")
+  colnames(df) <- c("samplee" ,"typeofloss" , "shrunke")
+  
+  colors  <- c("red" , "green" , "blue" , "cyan" , "hotpink" , "gold3" , 
+               "black", "purple")
+  
+  colors <- c(head(colors, numLosses), tail(colors,1))
+  names(colors) <- c(colnames(E), "y=x")
+  
+  p <- ggplot(data = df, aes(x = samplee, y = shrunke )) + 
+    geom_point(aes(color = typeofloss)) + geom_line(aes(color = typeofloss)) + 
+    geom_abline(aes(color = "y=x"), slope=1, intercept=0) + 
+    scale_color_manual("", values = colors) + 
+    xlab("Sample Eigenvalues") + ylab("Shrunk Eigenvalues") + 
+    scale_x_continuous(breaks=pretty_breaks(n=10)) +
+    scale_y_continuous(breaks=pretty_breaks(n=10)) +
+    ggtitle(paste("Norm = ",norm, ", NumofSpikes = ", numOfSpikes, 
+                  ", gamma = ", round(gamma, digits = 6), sep = "")) + 
+    theme_bw() +
+    theme(plot.title = element_text(size = 16, face = "bold", vjust = 1),
+          axis.title=element_text(size=12), legend.key = element_blank())
+  
+  p
+}
+
+#' Eigenvalue plot
+#' 
+#' @details
+#' Compares shrunk eigenvalues against sample eigenvalues for all norms and losses
+#' 
+#' @importFrom scales pretty_breaks
+#' 
+#' @param R xts object of asset returns
+#' @param numberOfSpikes model of the type spikedCovariance
+#' @param gamma atio of varibales/observations. If NA it will be estimated from
+#'                 the data. One can set it to variables/observations
+#' @param ... additional arguments unused
+#' @author Rohit Arora
+#' @examples 
+#' \dontrun{
+#'  data("rmtdata")
+#'  model <- estSpikedCovariance(rmtdata, numOfSpikes=10)
+#'  plot(model)
+#' }
+#' 
+#' @export
+#' 
+plot.spikedCovariance <- function(R, gamma = NA, numOfSpikes = 1,  ...) {
+  
+  dummyModel <- estSpikedCovariance(R, gamma = gamma, numOfSpikes = numOfSpikes, 
+                            norm = "Frobenius", pivot = 1)
+  
+  p.frob <- .plot.spikedCovariance(dummyModel, norm = "Frobenius")
+  p.oper <- .plot.spikedCovariance(dummyModel, norm =  "Operator")
+  p.nuc  <- .plot.spikedCovariance(dummyModel, norm =  "Nuclear")
+  p.stat <- .plot.spikedCovariance(dummyModel, statistical = TRUE)
+  
+  grid.arrange(p.frob, p.nuc, p.oper, p.stat, ncol = 2)
 }

@@ -11,7 +11,7 @@ library(xts)
 #' 
 #' @author Rohit Arora
 #' 
-sim.RMTdata <- function(N = 200, p = 100, numOfSpikes = 10, seed = 9999) {
+sim.RMTdata <- function(N = 500, p = 100, numOfSpikes = 10, seed = 9999) {
   
   if(p < numOfSpikes) 
     stop("Number of spikes must be less than number of variables")
@@ -19,7 +19,8 @@ sim.RMTdata <- function(N = 200, p = 100, numOfSpikes = 10, seed = 9999) {
   set.seed(seed)
   
   lower <- 20; upper <- 60
-  spikes <- seq(20, 47, length.out = numOfSpikes)
+  #spikes <- seq(20, 47, length.out = numOfSpikes)
+  spikes <- c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
   E <- diag(spikes)
 
   M <- matrix(rnorm(N*p), nrow = N, ncol = p)

@@ -29,6 +29,8 @@ Imports:
   snow,
   doSNOW,
   fGarch, 
-  lhs
+  lhs,
+  scales,
+  gridExtra
 Depends: mvtnorm, RMTstat
 NeedsCompilation: yes
