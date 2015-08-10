@@ -4,17 +4,15 @@
 \alias{estSpikedCovariance}
 \title{(Donoho, Gavish, and Johnstone, 2013)}
 \usage{
-estSpikedCovariance(R, gamma = NA, numOfSpikes = 1, norm = c("Frobenius",
-  "Operator", "Nuclear"), pivot = 1, statistical = NA, fit = NA)
+estSpikedCovariance(R, numOfSpikes = NA, norm = c("Frobenius", "Operator",
+  "Nuclear"), pivot = 1, statistical = NA, fit = NA)
 }
 \arguments{
 \item{R}{xts object of asset returns}
 
-\item{gamma}{ratio of varibales/observations. If NA it will be estimated from
-the data. One can set it to variables/observations}
-
 \item{numOfSpikes}{number of spikes in the spike covariance model.
-It is defaulted to 1}
+If missing then it is estimated based on the number of
+eigenvalues above the cutoff.}
 
 \item{norm}{Type of matrix norm that must be calculated. Defaults to Frobenius}
 
@@ -24,11 +22,25 @@ It is defaulted to 1}
 when a valid value is set norm and pivot values are ignored}
 
 \item{fit}{list with 5 elements, cutoff for the bulk of MP distribution,
-           scaled lambdas, fitted gamma and fitted scaling constant,
+           scaled lambdas, fitted gamma fitted scaling constant and
            numOfSpikes}
 }
 \description{
 (Donoho, Gavish, and Johnstone, 2013)
+}
+\details{
+If the number of spikes are missing then, firstly the scale factor is estimated.
+We guess the number of spikes by counting the number of breaks using the
+Freedman-Diaconis algorithm. The initial number of spikes are guessed by
+counting the number of elements after the first zero. We use this to
+lower bound the variance. Variance is computed by fitting the median to the
+spectrum of eigenvalues.
+}
+\examples{
+\dontrun{
+ data("rmtdata")
+ model <- estSpikedCovariance(rmtdata, numOfSpikes  15)
+}
 }
 \author{
 Rohit Arora

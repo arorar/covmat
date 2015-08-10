@@ -139,35 +139,30 @@
   sqrt(1 - (.c.ell(lambda, gamma))^2)
 }
 
-#' Likelihood of Marchenko–Pastur distribution distribution
+#' Fitting median to the data
 #' 
 #' @details
-#' This method calculates the negative likelihood of the eigenvalues given 
-#' that they follow a Marchenko–Pastur distribution. The distribution is assumed
-#' to have unit variance.
+#' This method calculates the median of the eigenvalues given 
+#' that they follow a Marchenko–Pastur distribution. The median is matched to the
+#' 50% quantile from the MP distribution. This helps fit scale.factor to the
+#' data 
 #' 
 #' @param theta parameter to be optimized. In this case it is 
 #'          gamma, (variables/observations)
 #' @param lambdas eigenvalues to which the distribution is fitted
 #' 
-.neg.mpLogLik <- function(theta, lambdas, numOfSpikes) {
+.mp.obj <- function(theta, lambdas, gamma) {
   
-  gamma <- theta
-  scale.factor <- lambdas[numOfSpikes + 1]/(1 + sqrt(gamma))^2
+  scale.factor <- theta
 
   lambda.max <- scale.factor*(1 + sqrt(gamma))^2
   lambda.min <- scale.factor*(1 - sqrt(gamma))^2
   
-  spikes <- length(lambdas[lambdas > lambda.max])
-  if(spikes != numOfSpikes) return(.Machine$double.xmax)
-    
   lambdas <- lambdas[(lambdas <= lambda.max) & (lambdas >= lambda.min)]
-  if(length(lambdas) == 0) return(.Machine$double.xmax)
   
-  val <- sapply(lambdas,     
-                function(x) dmp(x,svr = 1/gamma, var = scale.factor))
-  
-  ifelse(is.infinite(-sum(log(val))), .Machine$double.xmax, -sum(log(val)))        
+  if(length(lambdas) < 1) return(.Machine$double.xmax)
+  m <- qmp(0.5, svr = 1/gamma, var = scale.factor)
+  abs(m - median(lambdas))
 }
 
 #' Fitting an MP distribution to the data
@@ -183,51 +178,69 @@
 #' 
 .getMPfit <- function(lambdas, gamma, numOfSpikes) {
   
-  if(is.na(gamma)) {
-    lambda.min <- min(lambdas)
-    lower <- 0; upper <- 1
+  scale.factor <-
+    if(is.na(numOfSpikes)) {
+      
+      counts <- hist(lambdas, plot = FALSE, breaks = "FD")$counts
+      temp.spikes <- sum(counts[which.max(counts == 0):length(counts)])
+      
+      lower <- lambdas[temp.spikes + 1]/(1 + sqrt(gamma))^2
+      upper <- if(mean(lambdas) > lower) mean(lambdas) else lambdas[1]/(1 + sqrt(gamma))^2
+
+      fit <- DEoptim(fn = .mp.obj, 
+                     lower=lower, upper = upper,
+                     control = list(itermax = 500, trace = 0),
+                     lambdas = lambdas, gamma = gamma)  
+      
+      fit$optim$bestmem      
+    }else
+      lambdas[numOfSpikes + 1]/(1 + sqrt(gamma))^2
     
-    fit <- DEoptim(fn = .neg.mpLogLik, 
-                   lower=lower, upper = upper,
-                   control = list(itermax = 1000, trace = 0),
-                   lambdas = lambdas, numOfSpikes = numOfSpikes)  
-    
-    gamma <- fit$optim$bestmem  
-  }
-  
-  scale.factor <- lambdas[numOfSpikes + 1]/(1 + sqrt(gamma))^2
   lambdas <- lambdas/scale.factor
   
   lambda.max <- (1 + sqrt(gamma))^2
   spikes <- length(lambdas[lambdas > lambda.max])
-  if(spikes != numOfSpikes)
-    browser()
+  
+  if(!is.na(numOfSpikes) && spikes != numOfSpikes) browser()
   
   list(lambda.max = lambda.max, lambdas = lambdas, gamma = gamma, 
-       scale.factor = scale.factor, numOfSpikes = numOfSpikes)
+       scale.factor = scale.factor, numOfSpikes = spikes)
 } 
 
 #' (Donoho, Gavish, and Johnstone, 2013)
 #' 
 #' @param R xts object of asset returns
-#' @param gamma  ratio of varibales/observations. If NA it will be estimated from
-#'                 the data. One can set it to variables/observations
 #' @param numOfSpikes number of spikes in the spike covariance model. 
-#'                    It is defaulted to 1
+#'                    If missing then it is estimated based on the number of 
+#'                    eigenvalues above the cutoff.
 #' @param norm Type of matrix norm that must be calculated. Defaults to Frobenius
 #' @param pivot takes values from 1...7. Details can be found in the paper
 #' @param statistical Stein/Entropy/Divergence/Affinity/Frechet. Default is set to NA.
 #'                    when a valid value is set norm and pivot values are ignored
 #' @param fit list with 5 elements, cutoff for the bulk of MP distribution, 
-#'            scaled lambdas, fitted gamma and fitted scaling constant,
+#'            scaled lambdas, fitted gamma fitted scaling constant and
 #'            numOfSpikes
+#' 
+#' @details 
+#' If the number of spikes are missing then, firstly the scale factor is estimated.
+#' We guess the number of spikes by counting the number of breaks using the
+#' Freedman-Diaconis algorithm. The initial number of spikes are guessed by
+#' counting the number of elements after the first zero. We use this to
+#' lower bound the variance. Variance is computed by fitting the median to the 
+#' spectrum of eigenvalues.
+#' 
+#' @examples 
+#' \dontrun{
+#'  data("rmtdata")
+#'  model <- estSpikedCovariance(rmtdata, numOfSpikes  15)
+#' }
 #' 
 #' @author Rohit Arora
 #' 
 #' @export
 #' 
 #' 
-estSpikedCovariance <- function(R, gamma = NA, numOfSpikes = 1,
+estSpikedCovariance <- function(R, numOfSpikes = NA,
                                 norm = c("Frobenius", "Operator", "Nuclear"),
                                 pivot = 1, statistical = NA,
                                 fit = NA) {
@@ -237,12 +250,9 @@ estSpikedCovariance <- function(R, gamma = NA, numOfSpikes = 1,
 
   if (T < M) stop("Does not work when T < M")
   
-  if((!is.na(gamma)) && (gamma > 1 || gamma < 0)) stop("Invalid gamma")
-  if(is.na(numOfSpikes) || (numOfSpikes > M)) stop("Invalid numOfSpikes")
+  gamma <- M/T
   
-  if ("gamma" %in% names(fit) && (!is.na(gamma)) && (fit$gamma != gamma))
-    stop("Conflicting gamma values")
-  
+  if((!is.na(numOfSpikes)) && (numOfSpikes > M)) stop("Invalid numOfSpikes")
   if ("numOfSpikes" %in% names(fit) && (!is.na(numOfSpikes)) && 
       (fit$numOfSpikes != numOfSpikes))
     stop("Conflicting numOfSpikes values")
@@ -262,8 +272,8 @@ estSpikedCovariance <- function(R, gamma = NA, numOfSpikes = 1,
   if(all(is.na(fit))) fit <- .getMPfit(lambdas, gamma, numOfSpikes)
   
   lambda.max <- fit$lambda.max; lambdas <- fit$lambdas; 
-  gamma <- fit$gamma; scale.factor <- fit$scale.factor
-
+  scale.factor <- fit$scale.factor
+  
   spiked.lambdas <- lambdas[lambdas > lambda.max]
   
   type <- ifelse(is.na(statistical), paste(norm,".",pivot,sep=""), statistical)
@@ -279,7 +289,7 @@ estSpikedCovariance <- function(R, gamma = NA, numOfSpikes = 1,
   
   C <- eigen$vectors %*% diag(rescaled.lambdas) %*% t(eigen$vectors)
   model <- list(cov = C, data = R, orig.lambdas = eigen$values, pivot = pivot,
-                numOfSpikes = numOfSpikes, norm = norm, new.lambdas = rescaled.lambdas, 
+                norm = norm, new.lambdas = rescaled.lambdas, 
                 dist.fit = fit)
   
   class(model) <- "spikedCovariance"
@@ -299,7 +309,9 @@ estSpikedCovariance <- function(R, gamma = NA, numOfSpikes = 1,
 
 .plot.spikedCovariance <- function(x, norm = NA, statistical = FALSE) {
   
-  data <- x$data; gamma <- x$dist.fit$gamma; numOfSpikes <- x$numOfSpikes 
+  data <- x$data; gamma <- x$dist.fit$gamma; numOfSpikes <- x$dist.fit$numOfSpikes 
+  scale.factor <- x$dist.fit$scale.factor
+  
   if(is.na(norm)) norm <- x$norm
 
   if (!norm %in% c("Frobenius", "Operator", "Nuclear"))
@@ -315,10 +327,10 @@ estSpikedCovariance <- function(R, gamma = NA, numOfSpikes = 1,
   for(i in 1:numLosses) {
     C <- 
       if (!statistical) {
-        estSpikedCovariance(data, gamma = gamma, numOfSpikes = numOfSpikes, 
+        estSpikedCovariance(data, numOfSpikes = numOfSpikes, 
                                norm = norm, pivot = i, fit = x$dist.fit)
       } else {
-        estSpikedCovariance(data, gamma = gamma, numOfSpikes = numOfSpikes, 
+        estSpikedCovariance(data, numOfSpikes = numOfSpikes, 
                                statistical = loss[i], fit = x$dist.fit)
       }
     
@@ -344,40 +356,37 @@ estSpikedCovariance <- function(R, gamma = NA, numOfSpikes = 1,
     xlab("Sample Eigenvalues") + ylab("Shrunk Eigenvalues") + 
     scale_x_continuous(breaks=pretty_breaks(n=10)) +
     scale_y_continuous(breaks=pretty_breaks(n=10)) +
-    ggtitle(paste("Norm = ",norm, ", NumofSpikes = ", numOfSpikes, 
-                  ", gamma = ", round(gamma, digits = 6), sep = "")) + 
+    ggtitle(bquote(list(Norm == .(norm), Spikes == .(numOfSpikes),
+                        sigma^{2} == .(round(scale.factor,6)))))  + 
     theme_bw() +
-    theme(plot.title = element_text(size = 16, face = "bold", vjust = 1),
-          axis.title=element_text(size=12), legend.key = element_blank())
+    theme(axis.title=element_text(size=12), legend.key = element_blank())
   
   p
 }
 
-#' Eigenvalue plot
+#' Eigenvalue plot. Similar to figure 1 in the paper
 #' 
 #' @details
 #' Compares shrunk eigenvalues against sample eigenvalues for all norms and losses
 #' 
 #' @importFrom scales pretty_breaks
+#' @importFrom gridExtra grid.arrange
 #' 
 #' @param R xts object of asset returns
 #' @param numberOfSpikes model of the type spikedCovariance
-#' @param gamma atio of varibales/observations. If NA it will be estimated from
-#'                 the data. One can set it to variables/observations
 #' @param ... additional arguments unused
 #' @author Rohit Arora
 #' @examples 
 #' \dontrun{
 #'  data("rmtdata")
-#'  model <- estSpikedCovariance(rmtdata, numOfSpikes=10)
-#'  plot(model)
+#'  plot(rmtdata, numOfSpikes  10)
 #' }
 #' 
 #' @export
 #' 
-plot.spikedCovariance <- function(R, gamma = NA, numOfSpikes = 1,  ...) {
+plot.spikedCovariance <- function(R, numOfSpikes = NA,  ...) {
   
-  dummyModel <- estSpikedCovariance(R, gamma = gamma, numOfSpikes = numOfSpikes, 
+  dummyModel <- estSpikedCovariance(R, numOfSpikes = numOfSpikes, 
                             norm = "Frobenius", pivot = 1)
   
   p.frob <- .plot.spikedCovariance(dummyModel, norm = "Frobenius")
@@ -385,5 +394,8 @@ plot.spikedCovariance <- function(R, gamma = NA, numOfSpikes = 1,  ...) {
   p.nuc  <- .plot.spikedCovariance(dummyModel, norm =  "Nuclear")
   p.stat <- .plot.spikedCovariance(dummyModel, statistical = TRUE)
   
-  grid.arrange(p.frob, p.nuc, p.oper, p.stat, ncol = 2)
+  grid.arrange(p.frob, p.nuc, p.oper, p.stat, ncol = 2, 
+               top = 
+                 textGrob("Optimal Shrinkers for 26 Component Loss Functions",
+               gp=gpar(fontsize=20, fontface = 'bold')))
 }

@@ -40,7 +40,9 @@ NULL
 #' @name rmtdata
 #' @title Simulated data for Spiked Covarianve Model
 #' @description Contains large data for 500 observations and 100 variables based
-#'                on standard normal independent random variables
+#'                on standard normal independent random variables. It has 15
+#'                spikes. The number of spikes can be correctly detected using
+#'                the fitting procedure as described in the code.
 #' @docType data
 #' @usage rmtdata
 NULL

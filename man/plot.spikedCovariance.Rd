@@ -2,22 +2,19 @@
 % Please edit documentation in R/spikedCovariance.R
 \name{plot.spikedCovariance}
 \alias{plot.spikedCovariance}
-\title{Eigenvalue plot}
+\title{Eigenvalue plot. Similar to figure 1 in the paper}
 \usage{
-plot.spikedCovariance(R, gamma = NA, numOfSpikes = 1, ...)
+plot.spikedCovariance(R, numOfSpikes = NA, ...)
 }
 \arguments{
 \item{R}{xts object of asset returns}
-
-\item{gamma}{atio of varibales/observations. If NA it will be estimated from
-the data. One can set it to variables/observations}
 
 \item{...}{additional arguments unused}
 
 \item{numberOfSpikes}{model of the type spikedCovariance}
 }
 \description{
-Eigenvalue plot
+Eigenvalue plot. Similar to figure 1 in the paper
 }
 \details{
 Compares shrunk eigenvalues against sample eigenvalues for all norms and losses
@@ -25,8 +22,7 @@ Compares shrunk eigenvalues against sample eigenvalues for all norms and losses
 \examples{
 \dontrun{
  data("rmtdata")
- model <- estSpikedCovariance(rmtdata, numOfSpikes=10)
- plot(model)
+ plot(rmtdata, numOfSpikes  10)
 }
 }
 \author{
