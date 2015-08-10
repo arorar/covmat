@@ -317,8 +317,6 @@ estSpikedCovariance <- function(R, numOfSpikes = NA,
   if (!norm %in% c("Frobenius", "Operator", "Nuclear"))
     stop("Invalid norm value")
 
-  if(statistical) norm <- "Statistical"
-  
   loss <- c("Stein","Entropy","Divergence","Affinity","Frechet")
   
   numLosses <- if(statistical) length(loss) else 7
@@ -349,6 +347,8 @@ estSpikedCovariance <- function(R, numOfSpikes = NA,
   colors <- c(head(colors, numLosses), tail(colors,1))
   names(colors) <- c(colnames(E), "y=x")
   
+  norm <- if(statistical) "Statistical" else paste(norm," Norm", sep="")
+  
   p <- ggplot(data = df, aes(x = samplee, y = shrunke )) + 
     geom_point(aes(color = typeofloss)) + geom_line(aes(color = typeofloss)) + 
     geom_abline(aes(color = "y=x"), slope=1, intercept=0) + 
@@ -356,7 +356,7 @@ estSpikedCovariance <- function(R, numOfSpikes = NA,
     xlab("Sample Eigenvalues") + ylab("Shrunk Eigenvalues") + 
     scale_x_continuous(breaks=pretty_breaks(n=10)) +
     scale_y_continuous(breaks=pretty_breaks(n=10)) +
-    ggtitle(bquote(list(Norm == .(norm), Spikes == .(numOfSpikes),
+    ggtitle(bquote(list(Discrepancy == .(norm), Spikes == .(numOfSpikes),
                         sigma^{2} == .(round(scale.factor,6)))))  + 
     theme_bw() +
     theme(axis.title=element_text(size=12), legend.key = element_blank())

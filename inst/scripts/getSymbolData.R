@@ -18,8 +18,7 @@ sim.RMTdata <- function(N = 500, p = 100, numOfSpikes = 15, seed = 9999) {
   
   set.seed(seed)
   
-  lower <- 20; upper <- 60
-  spikes <- seq(20, 47, length.out = numOfSpikes)
+  spikes <- seq(20, 48, length.out = numOfSpikes)
   E <- diag(spikes)
 
   M <- matrix(rnorm(N*p), nrow = N, ncol = p)
