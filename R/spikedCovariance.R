@@ -210,6 +210,8 @@
 #' (Donoho, Gavish, and Johnstone, 2013)
 #' 
 #' @param R xts object of asset returns
+#' @param gamma  ratio of varibales/observations. If NA it will be set to 
+#'                ratio of varibales/observations
 #' @param numOfSpikes number of spikes in the spike covariance model. 
 #'                    If missing then it is estimated based on the number of 
 #'                    eigenvalues above the cutoff.
@@ -240,7 +242,8 @@
 #' @export
 #' 
 #' 
-estSpikedCovariance <- function(R, numOfSpikes = NA,
+estSpikedCovariance <- function(R, gamma = NA, 
+                                numOfSpikes = NA,
                                 norm = c("Frobenius", "Operator", "Nuclear"),
                                 pivot = 1, statistical = NA,
                                 fit = NA) {
@@ -250,8 +253,10 @@ estSpikedCovariance <- function(R, numOfSpikes = NA,
 
   if (T < M) stop("Does not work when T < M")
   
-  gamma <- M/T
-  
+  if((!is.na(gamma)) && (gamma > 1 || gamma < 0)) stop("Invalid gamma")
+  if(is.na(gamma)) gamma <- M/T
+  else if (gamma > 1 || gamma < 0) stop("Invalid gamma")
+
   if((!is.na(numOfSpikes)) && (numOfSpikes > M)) stop("Invalid numOfSpikes")
   if ("numOfSpikes" %in% names(fit) && (!is.na(numOfSpikes)) && 
       (fit$numOfSpikes != numOfSpikes))
@@ -275,6 +280,7 @@ estSpikedCovariance <- function(R, numOfSpikes = NA,
   scale.factor <- fit$scale.factor
   
   spiked.lambdas <- lambdas[lambdas > lambda.max]
+  if (length(spiked.lambdas) == 0) stop("Nothing to shrink. Change parameters")
   
   type <- ifelse(is.na(statistical), paste(norm,".",pivot,sep=""), statistical)
 
@@ -371,8 +377,11 @@ estSpikedCovariance <- function(R, numOfSpikes = NA,
 #' 
 #' @importFrom scales pretty_breaks
 #' @importFrom gridExtra grid.arrange
+#' @importFrom grid textGrob
 #' 
 #' @param R xts object of asset returns
+#' @param gamma  ratio of varibales/observations. If NA it will be set to 
+#'                ratio of varibales/observations
 #' @param numberOfSpikes model of the type spikedCovariance
 #' @param ... additional arguments unused
 #' @author Rohit Arora
@@ -384,9 +393,9 @@ estSpikedCovariance <- function(R, numOfSpikes = NA,
 #' 
 #' @export
 #' 
-plot.spikedCovariance <- function(R, numOfSpikes = NA,  ...) {
+plot.spikedCovariance <- function(R, gamma = NA, numOfSpikes = NA,  ...) {
   
-  dummyModel <- estSpikedCovariance(R, numOfSpikes = numOfSpikes, 
+  dummyModel <- estSpikedCovariance(R, gamma = gamma, numOfSpikes = numOfSpikes, 
                             norm = "Frobenius", pivot = 1)
   
   p.frob <- .plot.spikedCovariance(dummyModel, norm = "Frobenius")

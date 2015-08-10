@@ -4,11 +4,14 @@
 \alias{estSpikedCovariance}
 \title{(Donoho, Gavish, and Johnstone, 2013)}
 \usage{
-estSpikedCovariance(R, numOfSpikes = NA, norm = c("Frobenius", "Operator",
-  "Nuclear"), pivot = 1, statistical = NA, fit = NA)
+estSpikedCovariance(R, gamma = NA, numOfSpikes = NA, norm = c("Frobenius",
+  "Operator", "Nuclear"), pivot = 1, statistical = NA, fit = NA)
 }
 \arguments{
 \item{R}{xts object of asset returns}
+
+\item{gamma}{ratio of varibales/observations. If NA it will be set to
+ratio of varibales/observations}
 
 \item{numOfSpikes}{number of spikes in the spike covariance model.
 If missing then it is estimated based on the number of

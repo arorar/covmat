@@ -4,10 +4,13 @@
 \alias{plot.spikedCovariance}
 \title{Eigenvalue plot. Similar to figure 1 in the paper}
 \usage{
-plot.spikedCovariance(R, numOfSpikes = NA, ...)
+plot.spikedCovariance(R, gamma = NA, numOfSpikes = NA, ...)
 }
 \arguments{
 \item{R}{xts object of asset returns}
+
+\item{gamma}{ratio of varibales/observations. If NA it will be set to
+ratio of varibales/observations}
 
 \item{...}{additional arguments unused}
 
