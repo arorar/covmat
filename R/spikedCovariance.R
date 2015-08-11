@@ -139,6 +139,68 @@
   sqrt(1 - (.c.ell(lambda, gamma))^2)
 }
 
+#' Calculate unknown noise estimate
+#' 
+#' @details
+#' This method calculates the unknown unbiased estimate of noise for the eigenvalues
+#' based on the procedure described in (Kritchman and Nadler, 2009). It involves
+#' solving a couple of nonlinear equations.
+#' 
+#' @param lambdas eigenvalues to which the distribution is fitted
+#' @param numObs  number of data observations
+#' @param numOfSpikes number of spikes in the spike covariance model
+#' 
+.sigma.sq.est <- function(lambdas , numObs, numOfSpikes) {
+  
+  p <- length(lambdas)
+  sigma.sq <- 1/(p-numOfSpikes) * sum(lambdas[(numOfSpikes+1):p])
+  
+  while(TRUE) {
+    
+    tmp.b <- lambdas[1:numOfSpikes] + sigma.sq - sigma.sq*(p-numOfSpikes)/numObs 
+    discriminant <- tmp.b^2 - 4 * lambdas[1:numOfSpikes]*sigma.sq
+    if (any( discriminant < 0)) break
+    
+    rho <- 0.5*(tmp.b + sqrt(discriminant)) 
+    sigma.sq.new <- 1/(p-numOfSpikes) * (sum(lambdas) - sum(rho))
+    if (abs(sigma.sq.new - sigma.sq)/sigma.sq < 1e-8) break
+    sigma.sq <- sigma.sq.new
+  }
+  
+  sigma.sq
+}
+
+#' Detect spikes in a covariance model
+#' 
+#' @details
+#' This method calculates the number of spikes in a spiked covariance model
+#' by iteratively comparing a standardized eigenvalue to the qunatile of Tracy-Wisdom
+#' distribution for given significance level. The procedure is described in 
+#' (Kritchman and Nadler, 2009). 
+#' 
+#' @param lambdas eigenvalues to which the distribution is fitted
+#' @param numObs  number of data observations
+#' @param alpha significance level for the test
+#' 
+.detectSpikes <- function(lambdas, numObs, alpha = 0.05) {
+  
+  p <- length(lambdas); max.spikes <- min(numObs, p) - 1; sigma.sq <- 0
+  s_alpha <- (-3/2 * log(4*sqrt(pi) * alpha/100 ))^(2/3)
+  
+  for(spikes in 1:max.spikes) {
+    
+    mu_np <- 1/numObs*(sqrt(numObs-1/2) + sqrt((p - spikes)-1/2))^2
+    sigma_np <- sqrt(mu_np/numObs) * (1/sqrt(numObs-1/2) + 1 / sqrt((p-spikes)-1/2) )^(1/3)
+    
+    sigma.sq.temp <- .sigma.sq.est(lambdas,numObs,spikes) 
+    if(lambdas[spikes] <= sigma.sq.temp*(mu_np + s_alpha * sigma_np)) break
+    sigma.sq <- sigma.sq.temp
+  }
+  
+  est.sigma.sq <- if(spikes > 1) sigma.sq else  sum(lambdas)/p
+  list(numOfSpikes = spikes - 1, sigma.sq = est.sigma.sq)
+}
+
 #' Fitting median to the data
 #' 
 #' @details
@@ -175,24 +237,32 @@
 #' @param lambdas eigenvalues of the sample covariance matrix
 #' @param gamma   ratio of varibales/observations
 #' @param numOfSpikes number of spikes in the spike covariance model
+#' @param numObs  number of data observations
+#' @param method KNTest/median fitting
 #' 
-.getMPfit <- function(lambdas, gamma, numOfSpikes) {
+.getMPfit <- function(lambdas, gamma, numOfSpikes, numObs, method) {
   
   scale.factor <-
     if(is.na(numOfSpikes)) {
       
-      counts <- hist(lambdas, plot = FALSE, breaks = "FD")$counts
-      temp.spikes <- sum(counts[which.max(counts == 0):length(counts)])
+      if (method == "median-fitting") {
+        counts <- hist(lambdas, plot = FALSE, breaks = "FD")$counts
+        temp.spikes <- sum(counts[which.max(counts == 0):length(counts)])
+        
+        lower <- lambdas[temp.spikes + 1]/(1 + sqrt(gamma))^2
+        upper <- if(mean(lambdas) > lower) mean(lambdas) else lambdas[1]/(1 + sqrt(gamma))^2
+        
+        fit <- DEoptim(fn = .mp.obj, 
+                       lower=lower, upper = upper,
+                       control = list(itermax = 500, trace = 0),
+                       lambdas = lambdas, gamma = gamma)  
+        
+        fit$optim$bestmem  
+      } else  {
+        kn.fit <- .detectSpikes(lambdas, numObs)
+        kn.fit$sigma.sq
+      }
       
-      lower <- lambdas[temp.spikes + 1]/(1 + sqrt(gamma))^2
-      upper <- if(mean(lambdas) > lower) mean(lambdas) else lambdas[1]/(1 + sqrt(gamma))^2
-
-      fit <- DEoptim(fn = .mp.obj, 
-                     lower=lower, upper = upper,
-                     control = list(itermax = 500, trace = 0),
-                     lambdas = lambdas, gamma = gamma)  
-      
-      fit$optim$bestmem      
     }else
       lambdas[numOfSpikes + 1]/(1 + sqrt(gamma))^2
     
@@ -222,14 +292,17 @@
 #' @param fit list with 5 elements, cutoff for the bulk of MP distribution, 
 #'            scaled lambdas, fitted gamma fitted scaling constant and
 #'            numOfSpikes
+#' @param method KNTest/median fitting. Default is KNTest
 #' 
 #' @details 
-#' If the number of spikes are missing then, firstly the scale factor is estimated.
-#' We guess the number of spikes by counting the number of breaks using the
-#' Freedman-Diaconis algorithm. The initial number of spikes are guessed by
-#' counting the number of elements after the first zero. We use this to
-#' lower bound the variance. Variance is computed by fitting the median to the 
-#' spectrum of eigenvalues.
+#' If the number of spikes are missing and the selected method is median-fitting
+#' then, firstly the scale factor is estimated. We guess the number of spikes by
+#' counting the number of breaks using the Freedman-Diaconis algorithm. The 
+#' initial number of spikes are guessed by counting the number of elements after
+#' the first zero. We use this to lower bound the variance. Variance is computed
+#' by fitting the median to the spectrum of eigenvalues. If the method is KNTest
+#' then we follow the procedure in (Kritchman and Nadler, 2009)
+#'  
 #' 
 #' @examples 
 #' \dontrun{
@@ -244,6 +317,7 @@
 #' 
 estSpikedCovariance <- function(R, gamma = NA, 
                                 numOfSpikes = NA,
+                                method = c("KNTest", "median-fitting"),
                                 norm = c("Frobenius", "Operator", "Nuclear"),
                                 pivot = 1, statistical = NA,
                                 fit = NA) {
@@ -271,10 +345,13 @@ estSpikedCovariance <- function(R, gamma = NA,
      !statistical %in% c("Stein","Entropy","Divergence","Affinity","Frechet"))
     stop("Invalid statistical parameter selected")
   
+  method <- method[1]
+  if (!method %in%  c("KNTest", "median-fitting")) stop("Invalid method")
+  
   S <- cov(.data)
   eigen <- eigen(S, symmetric=T)
   lambdas <- eigen$values
-  if(all(is.na(fit))) fit <- .getMPfit(lambdas, gamma, numOfSpikes)
+  if(all(is.na(fit))) fit <- .getMPfit(lambdas, gamma, numOfSpikes, T, method)
   
   lambda.max <- fit$lambda.max; lambdas <- fit$lambdas; 
   scale.factor <- fit$scale.factor

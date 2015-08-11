@@ -4,8 +4,9 @@
 \alias{estSpikedCovariance}
 \title{(Donoho, Gavish, and Johnstone, 2013)}
 \usage{
-estSpikedCovariance(R, gamma = NA, numOfSpikes = NA, norm = c("Frobenius",
-  "Operator", "Nuclear"), pivot = 1, statistical = NA, fit = NA)
+estSpikedCovariance(R, gamma = NA, numOfSpikes = NA, method = c("KNTest",
+  "median-fitting"), norm = c("Frobenius", "Operator", "Nuclear"),
+  pivot = 1, statistical = NA, fit = NA)
 }
 \arguments{
 \item{R}{xts object of asset returns}
@@ -17,6 +18,8 @@ ratio of varibales/observations}
 If missing then it is estimated based on the number of
 eigenvalues above the cutoff.}
 
+\item{method}{KNTest/median fitting. Default is KNTest}
+
 \item{norm}{Type of matrix norm that must be calculated. Defaults to Frobenius}
 
 \item{pivot}{takes values from 1...7. Details can be found in the paper}
@@ -25,19 +28,20 @@ eigenvalues above the cutoff.}
 when a valid value is set norm and pivot values are ignored}
 
 \item{fit}{list with 5 elements, cutoff for the bulk of MP distribution,
-           scaled lambdas, fitted gamma fitted scaling constant and
-           numOfSpikes}
+scaled lambdas, fitted gamma fitted scaling constant and
+numOfSpikes}
 }
 \description{
 (Donoho, Gavish, and Johnstone, 2013)
 }
 \details{
-If the number of spikes are missing then, firstly the scale factor is estimated.
-We guess the number of spikes by counting the number of breaks using the
-Freedman-Diaconis algorithm. The initial number of spikes are guessed by
-counting the number of elements after the first zero. We use this to
-lower bound the variance. Variance is computed by fitting the median to the
-spectrum of eigenvalues.
+If the number of spikes are missing and the selected method is median-fitting
+then, firstly the scale factor is estimated. We guess the number of spikes by
+counting the number of breaks using the Freedman-Diaconis algorithm. The
+initial number of spikes are guessed by counting the number of elements after
+the first zero. We use this to lower bound the variance. Variance is computed
+by fitting the median to the spectrum of eigenvalues. If the method is KNTest
+then we follow the procedure in (Kritchman and Nadler, 2009)
 }
 \examples{
 \dontrun{
