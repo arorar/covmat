@@ -31,7 +31,6 @@ Imports:
   fGarch, 
   lhs,
   scales,
-  gridExtra,
-  grid
-Depends: mvtnorm, RMTstat
+  gridExtra
+Depends: mvtnorm, RMTstat, grid
 NeedsCompilation: yes

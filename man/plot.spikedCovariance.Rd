@@ -4,13 +4,16 @@
 \alias{plot.spikedCovariance}
 \title{Eigenvalue plot. Similar to figure 1 in the paper}
 \usage{
-plot.spikedCovariance(R, gamma = NA, numOfSpikes = NA, ...)
+plot.spikedCovariance(R, gamma = NA, numOfSpikes = NA, method = "KNTest",
+  ...)
 }
 \arguments{
 \item{R}{xts object of asset returns}
 
 \item{gamma}{ratio of varibales/observations. If NA it will be set to
 ratio of varibales/observations}
+
+\item{method}{KNTest/median-fitting. Default is KNTest}
 
 \item{...}{additional arguments unused}
 

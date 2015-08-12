@@ -18,7 +18,7 @@ ratio of varibales/observations}
 If missing then it is estimated based on the number of
 eigenvalues above the cutoff.}
 
-\item{method}{KNTest/median fitting. Default is KNTest}
+\item{method}{KNTest/median-fitting. Default is KNTest}
 
 \item{norm}{Type of matrix norm that must be calculated. Defaults to Frobenius}
 
@@ -46,7 +46,7 @@ then we follow the procedure in (Kritchman and Nadler, 2009)
 \examples{
 \dontrun{
  data("rmtdata")
- model <- estSpikedCovariance(rmtdata, numOfSpikes  15)
+ model <- estSpikedCovariance(rmtdata, numOfSpikes=15)
 }
 }
 \author{

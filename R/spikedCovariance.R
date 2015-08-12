@@ -257,7 +257,7 @@
                        control = list(itermax = 500, trace = 0),
                        lambdas = lambdas, gamma = gamma)  
         
-        fit$optim$bestmem  
+        fit$optim$bestmem 
       } else  {
         kn.fit <- .detectSpikes(lambdas, numObs)
         kn.fit$sigma.sq
@@ -292,7 +292,7 @@
 #' @param fit list with 5 elements, cutoff for the bulk of MP distribution, 
 #'            scaled lambdas, fitted gamma fitted scaling constant and
 #'            numOfSpikes
-#' @param method KNTest/median fitting. Default is KNTest
+#' @param method KNTest/median-fitting. Default is KNTest
 #' 
 #' @details 
 #' If the number of spikes are missing and the selected method is median-fitting
@@ -307,7 +307,7 @@
 #' @examples 
 #' \dontrun{
 #'  data("rmtdata")
-#'  model <- estSpikedCovariance(rmtdata, numOfSpikes  15)
+#'  model <- estSpikedCovariance(rmtdata, numOfSpikes=15)
 #' }
 #' 
 #' @author Rohit Arora
@@ -331,7 +331,9 @@ estSpikedCovariance <- function(R, gamma = NA,
   if(is.na(gamma)) gamma <- M/T
   else if (gamma > 1 || gamma < 0) stop("Invalid gamma")
 
-  if((!is.na(numOfSpikes)) && (numOfSpikes > M)) stop("Invalid numOfSpikes")
+  if((!is.na(numOfSpikes)) && ((numOfSpikes > M) || (numOfSpikes < 0))) 
+     stop("Invalid numOfSpikes")
+     
   if ("numOfSpikes" %in% names(fit) && (!is.na(numOfSpikes)) && 
       (fit$numOfSpikes != numOfSpikes))
     stop("Conflicting numOfSpikes values")
@@ -460,6 +462,7 @@ estSpikedCovariance <- function(R, gamma = NA,
 #' @param gamma  ratio of varibales/observations. If NA it will be set to 
 #'                ratio of varibales/observations
 #' @param numberOfSpikes model of the type spikedCovariance
+#' @param method KNTest/median-fitting. Default is KNTest
 #' @param ... additional arguments unused
 #' @author Rohit Arora
 #' @examples 
@@ -470,10 +473,11 @@ estSpikedCovariance <- function(R, gamma = NA,
 #' 
 #' @export
 #' 
-plot.spikedCovariance <- function(R, gamma = NA, numOfSpikes = NA,  ...) {
+plot.spikedCovariance <- function(R, gamma = NA, numOfSpikes = NA, 
+                                  method = "KNTest", ...) {
   
   dummyModel <- estSpikedCovariance(R, gamma = gamma, numOfSpikes = numOfSpikes, 
-                            norm = "Frobenius", pivot = 1)
+                            method = method, norm = "Frobenius", pivot = 1)
   
   p.frob <- .plot.spikedCovariance(dummyModel, norm = "Frobenius")
   p.oper <- .plot.spikedCovariance(dummyModel, norm =  "Operator")

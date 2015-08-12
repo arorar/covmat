@@ -4,8 +4,8 @@
 \alias{isdccfit}
 \title{Fit an Independent Regime Switching Model}
 \usage{
-isdccfit(R, numRegimes, transMatbounds = c(2, 10), dccBounds = c(0, 1),
-  w = NA, ...)
+isdccfit(R, numRegimes = NA, transMatbounds = c(2, 10), dccBounds = c(0,
+  1), w = NA, ...)
 }
 \arguments{
 \item{R}{xts object of asset returns}
