@@ -16,7 +16,7 @@
 #' @author Rohit Arora
 #' @export
 #' 
-compare.cov <- function(cov1, cov2, labels, corr=FALSE) {
+compareCov <- function(cov1, cov2, labels, corr=FALSE) {
   
     if (length(labels) != 2) stop("There must be two labels")
     

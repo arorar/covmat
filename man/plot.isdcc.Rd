@@ -9,9 +9,9 @@ plot.isdcc(x, which.plot = c(1, 2), ...)
 \arguments{
 \item{x}{model of the type isdcc obtained by fitting an IS-DCC model to the data}
 
-\item{...}{additional arguments unused}
+\item{which.plot}{takes values 1/2. 1 = Implied States, 2 = Smoothed Proabability}
 
-\item{which}{takes values 1/2. 1 = Implied States, 2 = Smoothed Proabability}
+\item{...}{additional arguments unused}
 }
 \description{
 Implied State plot

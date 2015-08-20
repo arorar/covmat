@@ -344,7 +344,7 @@ isdccfit <- function(R, numRegimes=NA,
 #' Plot implied states using the fitted Independent Switching DCC model
 #' 
 #' @param x model of the type isdcc obtained by fitting an IS-DCC model to the data
-#' @param  which takes values 1/2. 1 = Implied States, 2 = Smoothed Proabability
+#' @param  which.plot takes values 1/2. 1 = Implied States, 2 = Smoothed Proabability
 #' @param ... additional arguments unused
 #' @author Rohit Arora
 #' @examples 

@@ -209,7 +209,7 @@ We can also compare the performace of FMMC with the naive approach of constructi
 
 ```{r fmmc-plot, , fig.width=10, fig.height=6}
 
-compare.cov(fmmc, cov(na.omit(symdata)),c("FMMC","Truncated"))
+compareCov(fmmc, cov(na.omit(symdata)),c("FMMC","Truncated"))
 
 ```
 \
@@ -670,7 +670,7 @@ We can investigate the peformance of 26 shrinkers by plotting them simultaneouls
 
 ```{r spike-plot, eval=FALSE}
 
-  plot.spikedCovariance(rmtdata)
+  plotSpikedCovariance(rmtdata)
 
 ```
 
@@ -679,7 +679,7 @@ We can investigate the peformance of 26 shrinkers by plotting them simultaneouls
 filepath <- "./CovarianceEstimation_cache/Shrinkage.png"
 if (!file.exists(filepath)) {
   png(file = filepath, width = 12, height = 10, units = "in", res = 300)
-  plot.spikedCovariance(rmtdata)
+  plotSpikedCovariance(rmtdata)
   dev.off()
 }
 

@@ -1,12 +1,10 @@
 symbols <- c('LNKD', 'V', 'LAZ')
 symCount <- length(symbols)
 
-print(getwd())
-
-data("returnsdata")
+data("missingdata")
 data("factordata")
 
-symdata <- symdata["2007-04-01/2014-12-31",symbols]
+symdata <- missingdata["2007-04-01/2014-12-31",symbols]
 
 dates.ret.monthly <- format(index(symdata), "%Y%m")
 dates.factors.monthly <- format(index(factor.data), "%Y%m")

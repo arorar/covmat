@@ -66,35 +66,14 @@ orthogonal.matrix <- function(d, angles) {
 }
 
 #' @export
-.obj <- function(params, R, startup_period=10, training_period=60, lambda = 0.2) {
+.obj <- function(params, R, y.hat, Sigma.hat, startup_period, training_period, 
+                 lambda = 0.2) {
   
-  M <- nrow(R); d <- ncol(R); I <- diag(rep(1, d))
-  if(M < 4*d) stop("Not enough data for estimation")
-  
-  smoothing.matrix <- .smoothing.matrix(params, d)
-  
-  startup_period <- startup_period[1]
-  if(is.na(startup_period) || startup_period < 2*d) startup_period <- 2*d
-  
-  training_period <- training_period[1]
-  if(is.na(training_period) || training_period < (startup_period + 2*d)) 
-    training_period <- startup_period + 2*d
-
-  if ( M < (startup_period + training_period)) 
-    stop("Insufficienct data. Reset correct startup & training periods")
-  
-  startup.fit <- lapply(1:d, function(i) {
-        lmRob(coredata(R[1:startup_period,i]) ~ as.matrix(1:startup_period))
-      })
-  
-  y.hat <- matrix(NA, nrow = training_period, ncol = ncol(R))
-  y.hat[1:startup_period,] <- do.call(cbind, lapply(startup.fit, fitted))
-  
-  res <- do.call(cbind, lapply(startup.fit, residuals))  
-  Sigma.hat <- covMcd(res)$cov
+  d <- ncol(R); I <- diag(rep(1, d))
+  smoothing.matrix <- .smoothing.matrix(params, d);
   
   forecast.error <- matrix(NA, nrow = training_period - startup_period, 
-                           ncol = ncol(R))
+                           ncol = d)
   
   for(t in (startup_period + 1):training_period) {
     
@@ -116,5 +95,63 @@ orthogonal.matrix <- function(d, angles) {
   h <- floor(0.75 * (training_period - startup_period))
   Sigma.hat <- covMcd(forecast.error, nsamp = h)$cov
 
-  sum(diag(Sigma.hat))
+  det(Sigma.hat)
+}
+
+
+#' @export
+smoothing.matrix <- function(R, startup_period = 10, training_period = 60 , 
+                             seed = 9999, trials = 50, method = "L-BFGS-B") {
+  
+  M <- nrow(R); d <- ncol(R)
+  if(M < 4*d) stop("Not enough data for estimation")
+  
+  startup_period <- startup_period[1]
+  if(is.na(startup_period) || startup_period < 2*d) startup_period <- 2*d
+  
+  training_period <- training_period[1]
+  if(is.na(training_period) || training_period < (startup_period + 2*d)) 
+    training_period <- startup_period + 2*d
+  
+  if ( M < (startup_period + training_period)) 
+    stop("Insufficienct data. Reset correct startup & training periods")
+  
+  startup.fit <- lapply(1:d, function(i) {
+    lmRob(coredata(R[1:startup_period,i]) ~ as.matrix(1:startup_period))
+  })
+  
+  y.hat <- matrix(NA, nrow = training_period, ncol = ncol(R))
+  y.hat[1:startup_period,] <- do.call(cbind, lapply(startup.fit, fitted))
+  
+  res <- do.call(cbind, lapply(startup.fit, residuals))  
+  Sigma.hat <- covMcd(res)$cov
+  
+  set.seed(seed)
+  
+  lower <- c(rep(0,d), rep(-pi/2, d*(d-1)/2))
+  upper <- c(rep(1,d), rep(pi/2, d*(d-1)/2))
+  nlower <- length(lower); width <- upper - lower
+  
+  Umin <- matrix(rep.int(lower, trials), nrow = trials, ncol=nlower, byrow=T)
+  start <- (Umin + matrix(rep.int(width, trials), nrow = trials, 
+                      ncol=nlower, byrow=T)*maximinLHS(n = trials, k = nlower))
+  
+  cl <- makeCluster(detectCores())
+  clusterExport(cl, list = c("lower", "upper", ".obj", "optimx","R"), 
+                envir = environment())
+  registerDoSNOW(cl)  
+  
+  objmin <- parRapply(cl, start, function (x)
+    try(optimx(x, .obj, lower = lower, upper = upper, method = method, R = R , 
+               y.hat = y.hat, Sigma.hat = Sigma.hat, startup_period = startup_period, 
+             training_period = training_period), silent=TRUE))
+  
+  fit <- objmin[[unique(which.min(parSapply(cl, objmin, '[[', "value")))]]
+  
+  stopCluster(cl)
+  registerDoSEQ()
+  
+  params <- unlist(fit[1:(d*(d+1)/2)])
+  N <- .smoothing.matrix(params, d)
+  list(smooth.mat = N, fit = fit, all.fit = objmin)
 }

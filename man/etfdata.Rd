@@ -8,7 +8,7 @@
 Yahoo finance
 }
 \usage{
-dow30data
+etfdata
 }
 \description{
 Contains returns for 9 etf symbols XLE, XLY, XLP, XLF, XLV,XLI,

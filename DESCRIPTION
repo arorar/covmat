@@ -35,6 +35,5 @@ Imports:
   optimx,
   DEoptim,
   foreach
-Enhances: factorAnalytics  
 Depends: mvtnorm, RMTstat, grid
 NeedsCompilation: yes

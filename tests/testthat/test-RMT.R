@@ -1,4 +1,6 @@
-data("largereturn")
+data("dow30data")
+
+largesymdata <- dow30data
 symCount <- ncol(largesymdata)
 
 model <- estRMT(largesymdata, cutoff = "each", parallel = FALSE)

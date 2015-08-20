@@ -461,19 +461,19 @@ estSpikedCovariance <- function(R, gamma = NA,
 #' @param R xts object of asset returns
 #' @param gamma  ratio of varibales/observations. If NA it will be set to 
 #'                ratio of varibales/observations
-#' @param numberOfSpikes model of the type spikedCovariance
+#' @param numOfSpikes model of the type spikedCovariance
 #' @param method KNTest/median-fitting. Default is KNTest
 #' @param ... additional arguments unused
 #' @author Rohit Arora
 #' @examples 
 #' \dontrun{
 #'  data("rmtdata")
-#'  plot(rmtdata, numOfSpikes  10)
+#'  plot(rmtdata, numOfSpikes=10)
 #' }
 #' 
 #' @export
 #' 
-plot.spikedCovariance <- function(R, gamma = NA, numOfSpikes = NA, 
+plotSpikedCovariance <- function(R, gamma = NA, numOfSpikes = NA, 
                                   method = "KNTest", ...) {
   
   dummyModel <- estSpikedCovariance(R, gamma = gamma, numOfSpikes = numOfSpikes, 

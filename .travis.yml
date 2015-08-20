@@ -1,6 +1,6 @@
 ## Travis configuration file for covmat
 
-language: r
+language: R
 
 sudo: required
 
@@ -15,13 +15,14 @@ r_build_args: "--no-build-vignettes --no-manual"
 r_check_args: "--no-build-vignettes --no-manual --as-cran"
 
 install:
-  - Rscript -e 'install.packages("factorAnalytics", repos="http://R-Forge.R-project.org")'
+  - ./travis-tool.sh install_deps
   - ./travis-tool.sh install_github hadley/devtools
   - ./travis-tool.sh install_github hadley/testthat
   - ./travis-tool.sh install_github jimhester/covr
   - ./travis-tool.sh install_github yihui/knitr
-  - Rscript -e 'library("devtools"); library("methods"); options(repos=c(RForge="http://r-forge.r-project.org")); install_deps(dependencies = "Enhances")'
-  - ./travis-tool.sh install_deps
+  - ./travis-tool.sh install_github arorar/FactorAnalytics
+
+script: ./travis-tool.sh run_tests
 
 after_success:
   - Rscript -e 'library(covr);coveralls()'

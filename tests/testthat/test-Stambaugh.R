@@ -1,9 +1,9 @@
 symbols <- c('BABA', 'TWTR', 'LNKD', 'YHOO', 'GE')
 symCount <- length(symbols)
 
-data("returnsdata")
+data("missingdata")
 
-symdata <- symdata["2007-04-01/", symbols]
+symdata <- missingdata["2007-04-01/", symbols]
 models  <- stambaugh.fit(symdata, method = c("classic", "truncated"))
 
 #expect 2 models
