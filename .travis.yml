@@ -20,7 +20,7 @@ install:
   - ./travis-tool.sh install_github hadley/testthat
   - ./travis-tool.sh install_github jimhester/covr
   - ./travis-tool.sh install_github yihui/knitr
-    - Rscript -e 'library("devtools"); library("methods"); options(repos=c(RForge="http://r-forge.r-project.org")); install_deps(dependencies = "Enhances")'
+  - Rscript -e 'library("devtools"); library("methods"); options(repos=c(RForge="http://r-forge.r-project.org")); install_deps(dependencies = "Enhances")'
   - ./travis-tool.sh install_deps
 
 after_success:
