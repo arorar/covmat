@@ -9,14 +9,12 @@ warnings_are_errors: false
 r_build_args: "--no-build-vignettes --no-manual"
 r_check_args: "--no-build-vignettes --no-manual --as-cran"
 
-r_github_packages:
-  - hadley/devtools
-  - hadley/testthat
-  - jimhester/covr
-
 install:
   - Rscript -e 'install.packages("factorAnalytics", repos="http://R-Forge.R-project.org")'
-  - Rscript -e 'install.packages("devtools")'
+  - ./travis-tool.sh install_github hadley/devtools
+  - ./travis-tool.sh install_github hadley/testthat
+  - ./travis-tool.sh install_github jimhester/covr
+  
 after_success:
   - Rscript -e 'library(covr);coveralls()'
 
