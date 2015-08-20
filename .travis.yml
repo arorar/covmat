@@ -18,6 +18,8 @@ r_github_packages:
   - hadley/testthat
   - jimhester/covr
 
+install:
+  - Rscript -e 'install.packages("factorAnalytics", repos="http://R-Forge.R-project.org")'
 after_success:
   - Rscript -e 'library(covr);coveralls()'
 
