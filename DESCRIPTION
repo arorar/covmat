@@ -12,6 +12,7 @@ Suggests: knitr, testthat, roxygen2
 VignetteBuilder: knitr
 LazyLoad: yes
 Imports: 
+  factorAnalytics,
   zoo,
   xts,
   robust, 
