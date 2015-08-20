@@ -16,11 +16,11 @@ r_check_args: "--no-build-vignettes --no-manual --as-cran"
 
 install:
   - Rscript -e 'install.packages("factorAnalytics", repos="http://R-Forge.R-project.org")'
-  - Rscript -e 'library("devtools"); library("methods"); options(repos=c(RForge="http://r-forge.r-project.org")); install_deps(dependencies = "Enhances")'
   - ./travis-tool.sh install_github hadley/devtools
   - ./travis-tool.sh install_github hadley/testthat
   - ./travis-tool.sh install_github jimhester/covr
   - ./travis-tool.sh install_github yihui/knitr
+    - Rscript -e 'library("devtools"); library("methods"); options(repos=c(RForge="http://r-forge.r-project.org")); install_deps(dependencies = "Enhances")'
   - ./travis-tool.sh install_deps
 
 after_success:
