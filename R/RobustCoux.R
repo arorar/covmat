@@ -113,6 +113,41 @@
   else g
 }
 
+#' Internal helper function for the Objective
+#' 
+.obj.helper <- function(smoothing.matrix, R, y.hat, Sigma.hat, startup_period, 
+                        training_period, lambda) {
+  
+  d <- ncol(R); I <- diag(rep(1, d))
+  
+  forecast.error <- matrix(NA, nrow = training_period - startup_period, ncol = d)
+  cleaned.val <- matrix(NA, nrow = training_period - startup_period, ncol = d)
+  
+  for(t in (startup_period + 1):training_period) {
+    
+    forecast.error[t - startup_period,] <- R[t,] - y.hat[t-1,]
+    ferr <- t(forecast.error[t - startup_period,,drop=FALSE])
+    
+    I.Sigma.hat <- solve(Sigma.hat)
+    temp <- as.numeric(t(ferr) %*% I.Sigma.hat %*% ferr)
+    Sigma.hat <- lambda*.biweight(sqrt(temp), d)/temp * ferr %*% t(ferr) + 
+      (1 - lambda)*Sigma.hat
+    
+    temp <- as.numeric(sqrt(t(ferr) %*% solve(Sigma.hat) %*% ferr))
+    cleanVal <- cleaned.val[t - startup_period,] <- .huber(temp, d)/temp*ferr + 
+      t(y.hat[t-1,,drop=FALSE])
+    
+    y.hat[t,] <- smoothing.matrix %*% cleanVal + 
+      (I - smoothing.matrix) %*% t(y.hat[t-1,,drop=FALSE])
+  }
+  
+  h <- floor(0.75 * (training_period - startup_period))
+  Sigma.hat <- covMcd(forecast.error, nsamp = h)$cov
+  
+  smoothVal <- y.hat[(startup_period + 1):training_period,]
+  list(smoothValues = smoothVal, cleanValues = cleaned.val, covMat = Sigma.hat)
+}
+
 #' Objective to calculate the optimal smoothing matrix
 #' 
 #' @details
@@ -130,35 +165,15 @@
 #' @param lambda known constant as described in the paper
 #' 
 .obj <- function(params, R, y.hat, Sigma.hat, startup_period, training_period, 
-                 lambda = 0.2) {
+                 lambda) {
   
-  d <- ncol(R); I <- diag(rep(1, d))
-  smoothing.matrix <- .smoothing.matrix(params, d);
+  d <- ncol(R); smoothing.matrix <- .smoothing.matrix(params, d);
   
-  forecast.error <- matrix(NA, nrow = training_period - startup_period, 
-                           ncol = d)
-  
-  for(t in (startup_period + 1):training_period) {
-    
-    forecast.error[t - startup_period,] <- R[t,] - y.hat[t-1,]
-    ferr <- t(forecast.error[t - startup_period,,drop=FALSE])
-    
-    I.Sigma.hat <- solve(Sigma.hat)
-    temp <- as.numeric(t(ferr) %*% I.Sigma.hat %*% ferr)
-    Sigma.hat <- lambda*.biweight(sqrt(temp), d)/temp * ferr %*% t(ferr) + 
-                  (1 - lambda)*Sigma.hat
-    
-    temp <- as.numeric(sqrt(t(ferr) %*% solve(Sigma.hat) %*% ferr))
-    cleaned.val <- .huber(temp, d)/temp*ferr + t(y.hat[t-1,,drop=FALSE])
-      
-    y.hat[t,] <- smoothing.matrix %*% cleaned.val + 
-      (I - smoothing.matrix) %*% t(y.hat[t-1,,drop=FALSE])
-  }
-  
-  h <- floor(0.75 * (training_period - startup_period))
-  Sigma.hat <- covMcd(forecast.error, nsamp = h)$cov
+  fit <- .obj.helper(smoothing.matrix, R, y.hat, Sigma.hat, startup_period, 
+              training_period, lambda)
 
-  det(Sigma.hat)
+  forecast.accuracy <- det(fit$covMat)
+  forecast.accuracy
 }
 
 
@@ -180,20 +195,20 @@
 #'            Large number of trials for high dimensions can be time consuming
 #' @param method optimization method to use to evaluate an estimate of 
 #'            smoothing matrix. Default is L-BFGS-B
+#' @param lambda known constant as described in the paper. Defaulted to 0.2           
 #' 
 #' @export
 #' @author Rohit Arora
 #' 
 smoothing.matrix <- function(R, startup_period = 10, training_period = 60 , 
-                             seed = 9999, trials = 50, method = "L-BFGS-B") {
+                             seed = 9999, trials = 50, method = "L-BFGS-B",
+                             lambda = 0.2) {
   
   M <- nrow(R); d <- ncol(R)
   if(M < 4*d) stop("Not enough data for estimation")
   
-  startup_period <- startup_period[1]
   if(is.na(startup_period) || startup_period < 2*d) startup_period <- 2*d
   
-  training_period <- training_period[1]
   if(is.na(training_period) || training_period < (startup_period + 2*d)) 
     training_period <- startup_period + 2*d
   
@@ -228,7 +243,7 @@ smoothing.matrix <- function(R, startup_period = 10, training_period = 60 ,
   objmin <- parRapply(cl, start, function (x)
     try(optimx(x, .obj, lower = lower, upper = upper, method = method, R = R , 
                y.hat = y.hat, Sigma.hat = Sigma.hat, startup_period = startup_period, 
-             training_period = training_period), silent=TRUE))
+             training_period = training_period, lambda = lambda), silent=TRUE))
   
   fit <- objmin[[unique(which.min(parSapply(cl, objmin, '[[', "value")))]]
   
@@ -237,5 +252,88 @@ smoothing.matrix <- function(R, startup_period = 10, training_period = 60 ,
   
   params <- unlist(fit[1:(d*(d+1)/2)])
   N <- .smoothing.matrix(params, d)
-  list(smooth.mat = N, fit = fit, all.fit = objmin)
+  list(smooth.mat = N, minObj = fit, startup_period = startup_period, 
+            training_period = training_period)
+}
+
+#' Robust Multivariate Exponential Smoothing
+#' 
+#' @details
+#' Calculate Robust estimate of covariance matrix while also smoothing and 
+#' cleaning the data using the procedure described in 
+#' (Croux, Gelper, and Mahieu, 2010)
+#' 
+#' @param R data
+#' @param smoothMat Optimal smoothing matrix. If missing it is estimated. 
+#'              The procedure maybe very slow for high-dimensional data. Also,
+#'              the objective function being very noisy, optimization across
+#'              multiple runs may lead to different smoothing matrices. #' 
+#' @param startup_period length of samples required to calculate initial values
+#' @param training_period length of samples required to calculate forecast errors
+#'                for evalualating the objective if smoothing matrix is estimated
+#' @param seed random seed to replicate the starting values for optimization
+#' @param trials number of strarting values to try for any optimization. 
+#'            Large number of trials for high dimensions can be time consuming
+#' @param method optimization method to use to evaluate an estimate of 
+#'            smoothing matrix. Default is L-BFGS-B
+#' @param lambda known constant as described in the paper. Defaults to 0.2
+#' 
+#' @export
+#' @author Rohit Arora
+#' 
+robustMultExpSmoothing <- function(R, smoothMat = NA, startup_period = 10, 
+                         training_period = 60 , seed = 9999, trials = 50, 
+                         method = "L-BFGS-B", lambda = 0.2) {
+  
+  if(!is.xts(R)) stop("Only xts objects are allowed")
+  
+  M <- nrow(R); d <- ncol(R)
+  
+  if (is.null(dim(smoothMat))) {
+    
+    if (is.na(trials) || is.na(method) || is.na(lambda))
+      stop("Incorrect parameters for smoothing matrix estimation")
+    
+    smoothfit <-  smoothing.matrix(R, startup_period = startup_period, 
+                                   training_period = training_period, 
+                                   seed = seed, trials = trials, 
+                                   method = method, lambda = lambda) 
+    
+    smoothMat <- smoothfit$smooth.mat
+    startup_period <- smoothfit$startup_period
+    training_period <- smoothfit$training_period
+  }
+  else {
+    if(!isSymmetric(smoothMat)) stop("Smoothing matrix must be symmetric")
+    
+    eigVal <- eigen(smoothMat, symmetric = TRUE, only.values = TRUE)$values
+    if (any((eigVal < 0 | eigVal > 1))) 
+      stop("Eigenvalues of smoothing matrix must be in [0,1]")
+    
+    if(is.na(startup_period) || startup_period < 2*d) startup_period <- 2*d
+  }
+  
+  y.hat <- matrix(NA, nrow = M, ncol = ncol(R))
+  startup.fit <- lapply(1:d, function(i) {
+    lmRob(coredata(R[1:startup_period,i]) ~ as.matrix(1:startup_period))
+  })
+  
+  y.hat[1:startup_period,] <- do.call(cbind, lapply(startup.fit, fitted))
+  
+  res <- do.call(cbind, lapply(startup.fit, residuals))  
+  Sigma.hat <- covMcd(res)$cov
+  
+  fit <- .obj.helper(smoothMat, R = R, y.hat = y.hat, Sigma.hat = Sigma.hat, 
+                     startup_period = startup_period, 
+                     training_period = M, lambda = lambda)
+  
+  smoothValues <- fit$smoothValues; cleanValues <- fit$cleanValues; covMat <- fit$covMat
+  rownames(covMat) <- colnames(covMat) <- colnames(R)
+  colnames(smoothValues) <- colnames(cleanValues) <- colnames(R)
+  
+  smoothValues <- xts(smoothValues, order.by = index(R)[(startup_period+1):M])
+  cleanValues <- xts(cleanValues, order.by = index(R)[(startup_period+1):M])
+  
+  list(smoothMat = smoothMat, smoothValues = smoothValues, 
+       cleanValues = cleanValues, covMat = covMat)
 }

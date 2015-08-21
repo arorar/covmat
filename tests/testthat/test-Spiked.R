@@ -1,4 +1,12 @@
 data("rmtdata")
+symCount <- ncol(rmtdata)
+
+fit <- estSpikedCovariance(rmtdata)
+
+#dimension check for covariance matrix
+expect_true(isSymmetric(fit$cov))
+expect_equal(nrow(fit$cov), symCount)
+expect_equal(ncol(fit$cov), symCount)
 
 # Rows must be greater than columns
 expect_error(estSpikedCovariance(rmtdata[1:10,], gamma=2))

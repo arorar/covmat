@@ -22,12 +22,5 @@ install:
   - ./travis-tool.sh install_github yihui/knitr
   - ./travis-tool.sh install_github arorar/FactorAnalytics
 
-script: ./travis-tool.sh run_tests
-
 after_success:
   - Rscript -e 'library(covr);coveralls()'
-
-notifications:
-  email:
-  on_success: always
-  on_failure: always
