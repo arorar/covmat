@@ -19,4 +19,4 @@ install_github("arorar/covmat")
 Examples
 --------
 
-For detailed information regarding covmat's functionality, check out the vignette **[covmat vignette](https://github.com/arorar/covmat/blob/master/vignettes/CovarianceEstimation.pdf)**
+Detailed information regarding covmat's functionality and use can be found by reading the **[covmat vignette](https://github.com/arorar/covmat/blob/master/vignettes/CovarianceEstimation.pdf)**
