@@ -688,6 +688,89 @@ if (!file.exists(filepath)) {
 
 ![ShrinkagePlot](./CovarianceEstimation_cache/Shrinkage.png)
 
+# Robust Exponential Smooting of Multivariate Time Series
+
+Classical exponential smoothing is a popular technique used to forecast time series. However, presence of outliers can distort the forecasts leading to bad estimates. Robust methods result in much better forecasts than the classical approach in presence 
+of outliers. `r citep(bib[["Croux_2010"]])` suggest a methodology to combine these two techniques in a multivariate setting, where forecasting uses information from all components leading to more accurate forecasts. 
+
+## Covariance estimation
+
+To estimate a covariance matrix we can use the $\texttt{estSpikedCovariance}$ fucntion.
+
+```{r, eval=FALSE}
+
+robustMultExpSmoothing(R, smoothMat = NA, startup_period = 10, 
+                         training_period = 60 , seed = 9999, trials = 50, 
+                         method = "L-BFGS-B", lambda = 0.2)
+
+```
+
+The smoothing parameter is optional and will be estimated if missing. To estimate the smoothing matrix we use the constraints that the smoothing matrix is symmetric and its eigenvalues lie between 0 and 1. We also use the fact that the orthogonal matrix in spectral decomposition of smoothing matrix can be parameterized using givens angles. These angles must lie between $-\pi/2$  and $\pi/2$. To estimate the smoothing matrix we set up an optimization problem as described in the paper to minimize the determinant of the covariance of one step ahead forecast errors. The method argument allows one to change the optimization algorithm used. We use the $\texttt{optimx}$ package to solve the multivariate optimization problem. The package allows us to choose from 16 different algoritms. Experimental results show that Nelder-Mead and L-BFGS-B perform well for such a noisy function. One also needs to be careful with the rerproducablility of the results. Esimation of smoothing matrix may lead to sligtly different results on each run. However, the cleaned series or covariance matrix show only marginal differnces. To estimate the matrix we start the optimization from random points and the parameter $\texttt{trials}$ decides the number of runs and the parmater $\texttt{seed}$ can be used for replicate the starting points. One needs to be careful with esitmation of smoothing matrix for high dimensional data. The estimation requires to search roughly, dimension squared parameters, which can be slow. Semidefinite-programming could lead to better solutions. However, at the time of writing the package, support for such a solver which is open source in R is challenging to find. 
+
+## Evaluation
+Let us use 5 stocks from Dow Jones 30 data, ie AAPL, GE, MSFT, NKE and V.  
+
+
+```{r croux-est, eval=FALSE}
+
+data("dow30data")
+symbols <- c('AAPL', 'GE', 'MSFT' , 'NKE', 'V')
+
+R <- dow30data[,which(colnames(dow30data) %in% symbols)]
+smoothfit <- robustMultExpSmoothing(R) 
+
+```
+
+```{r croux-est-main, results='hide', echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+library(optimx)
+
+data("dow30data")
+symbols <- c('AAPL', 'GE', 'MSFT' , 'NKE', 'V')
+
+R <- dow30data[,which(colnames(dow30data) %in% symbols)]
+
+filepath <- "./CovarianceEstimation_cache/croux_smoothfit.RData"
+if (file.exists(filepath)) {
+  load(filepath)
+} else {
+  smoothfit <- robustMultExpSmoothing(R) 
+  save(smoothfit, file = filepath)
+}
+
+```
+
+Now lets plot the returns. Notice the spikes in AAPL and V in the regular plot. 
+
+```{r croux-plots1, fig.width=10, fig.height=6}
+
+plotmissing(R)
+
+```
+\
+
+$\newline$
+
+Let us also examine the cleaned time series. Notice that the spikes are missing.
+
+```{r croux-plots2, fig.width=10, fig.height=6}
+
+plotmissing(smoothfit$cleanValues)
+
+```
+\
+
+Let us also compare the ordinary robust covariance matrix against robust covariance matrix obtained using the procedure outlined in Croux. Notice the similarity between the two estimates.
+
+```{r croux-cov-plots, fig.width=10, fig.height=6}
+
+rob <- covRob(R)$cov
+compareCov(smoothfit$covMat, rob, labels = c("Robust Croux", "Robust"))
+
+
+```
+\
+
+
 #References
 ```{r references, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, echo=FALSE}
 #write.bibtex(file="references.bib")
