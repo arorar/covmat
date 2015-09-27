@@ -186,6 +186,9 @@
 #' requires d(d-1)/2 angles for a d dimensional matrix. The eigenvalues are 
 #' restricted to lie in [0,1].
 #' 
+#' @importFrom optimx optimx
+#' @importFrom parallel parRapply parSapply
+#' 
 #' @param R data
 #' @param startup_period length of samples required to calculate initial values
 #' @param training_period length of samples required to calculate forecast errors
@@ -202,8 +205,8 @@
 #' 
 smoothing.matrix <- function(R, startup_period = 10, training_period = 60 , 
                              seed = 9999, trials = 50, method = "L-BFGS-B",
-                             lambda = 0.2) {
-  
+                             lambda = 0.2) { 
+                               
   M <- nrow(R); d <- ncol(R)
   if(M < 4*d) stop("Not enough data for estimation")
   
@@ -236,9 +239,9 @@ smoothing.matrix <- function(R, startup_period = 10, training_period = 60 ,
                       ncol=nlower, byrow=T)*maximinLHS(n = trials, k = nlower))
   
   cl <- makeCluster(detectCores())
-  clusterExport(cl, list = c("lower", "upper", ".obj", "optimx","R"), 
+  clusterExport(cl, varlist = c("lower", "upper", ".obj", "optimx","R"), 
                 envir = environment())
-  registerDoSNOW(cl)  
+  registerDoParallel(cl)  
   
   objmin <- parRapply(cl, start, function (x)
     try(optimx(x, .obj, lower = lower, upper = upper, method = method, R = R , 

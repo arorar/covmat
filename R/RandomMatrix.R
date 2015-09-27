@@ -7,6 +7,7 @@
 #' to the plot
 #' 
 #' @param x model of the type RMT obtained by fitting an RMT model to the data
+#' @param y unused
 #' @param ... additional arguments unused
 #' @author Rohit Arora
 #' @examples 
@@ -16,15 +17,16 @@
 #'  plot(model)
 #' }
 #' 
+#' @method plot RMT
 #' @export
 #' 
-plot.RMT <- function(x, ...){
+plot.RMT <- function(x, y, ...){
     
     lambdas <- x$eigVals; Q <- x$Q; sigma.sq <- x$var 
     lambda.max <- x$lambdascutoff 
     
     p <- ggplot(data=data.frame(lambdas)) + 
-        geom_histogram( aes(x = lambdas, y=..density..),
+        geom_histogram( aes_string(x = lambdas, y='..density..'),
                         breaks=seq(min(lambdas)-1,1+max(lambdas),0.5), 
                         colour="black", fill="white") +
         stat_function(fun = dmp, args=list(svr = Q, var=sigma.sq), 
@@ -59,9 +61,8 @@ plot.RMT <- function(x, ...){
 #' @importFrom Matrix nearPD
 #' @importFrom RMTstat dmp qmp
 #' @importFrom foreach "%dopar%" foreach registerDoSEQ
-#' @importFrom parallel detectCores stopCluster
-#' @importFrom snow makeCluster clusterEvalQ clusterExport
-#' @importFrom doSNOW registerDoSNOW
+#' @importFrom parallel detectCores stopCluster makeCluster clusterEvalQ clusterExport
+#' @importFrom doParallel registerDoParallel
 #' 
 #' @param  R xts or matrix of asset returns
 #' @param  Q ratio of rows/size. Can be supplied externally or fit using data
@@ -128,12 +129,14 @@ estRMT <- function(R, Q =NA, cutoff = c("max", "each"),
         lb <- 1; ub <- max(T/M,5)
         if(parallel) {
           cl <- makeCluster(detectCores())
-          registerDoSNOW(cl)
+          registerDoParallel(cl)
           clusterEvalQ(cl, library(RMTstat))
         }
 
+        '%exectype%' <- if (parallel) get('%dopar%') else get('%do%')
+        
         starts <- seq(lb, ub, length.out = 50)
-        fit.marpas <- foreach(start = starts, .combine = rbind) %dopar% 
+        fit.marpas <- foreach(start = starts, .combine = rbind) %exectype% 
             optim(par = start, fn = loglik.marpas, method = "L-BFGS-B", 
                   lower = lb, upper = ub, sigma.sq = sigma.sq)   
         

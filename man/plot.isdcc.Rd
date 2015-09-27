@@ -4,12 +4,12 @@
 \alias{plot.isdcc}
 \title{Implied State plot}
 \usage{
-plot.isdcc(x, which.plot = c(1, 2), ...)
+\method{plot}{isdcc}(x, y = c(1, 2), ...)
 }
 \arguments{
 \item{x}{model of the type isdcc obtained by fitting an IS-DCC model to the data}
 
-\item{which.plot}{takes values 1/2. 1 = Implied States, 2 = Smoothed Proabability}
+\item{y}{type of plot. takes values 1/2. 1 = Implied States, 2 = Smoothed Proabability}
 
 \item{...}{additional arguments unused}
 }

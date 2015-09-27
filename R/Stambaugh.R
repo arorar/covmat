@@ -8,7 +8,8 @@
 #' 
 #' @param  R xts or matrix of asset returns
 #' @param  ... allows passing additional paramters
-#' @import factorAnalytics RCurl robust robustbase xts zoo CerioliOutlierDetection
+#' @importFrom factorAnalytics fitTsfm
+#' @import  RCurl robust robustbase xts zoo CerioliOutlierDetection
 #' @author Rohit Arora
 #' @export
 #' 
@@ -387,8 +388,8 @@ stambaugh.distance.plot <- function(model, level=0.975) {
                  Type = c("Classical","Robust"))
       
       p <- p + geom_segment(data=data.segm,
-                        aes(x=x,y=y,yend=yend,xend=xend),inherit.aes=FALSE ,
-                        linetype="dashed", colour="blue")
+                            aes_string(x='x',y='y',yend='yend',xend='xend'),
+                            inherit.aes=FALSE, linetype="dashed", colour="blue")
       
       data.segm <- data.frame(x = rep(x.thresh[i+1],2),
                               y = c(y.thresh.classical[i],y.thresh.robust[i]),
@@ -398,8 +399,8 @@ stambaugh.distance.plot <- function(model, level=0.975) {
         
 
       p <- p + geom_segment(data=data.segm,
-                            aes(x=x,y=y,yend=yend,xend=xend),inherit.aes=FALSE ,
-                            linetype="dashed", colour="blue")
+                            aes_string(x='x',y='y',yend='yend',xend='xend'),
+                            inherit.aes=FALSE, linetype="dashed", colour="blue")
     }
 
     ind <- head(floor(seq(1,nrow(data),length.out = 5)),-1)
@@ -418,17 +419,19 @@ stambaugh.distance.plot <- function(model, level=0.975) {
 #' This method takes in fitted models and a paramter for deciding the type of plot
 #' 
 #' @param  x fitted models for covariance
-#' @param  which takes values 1/2. 1 = Ellipse plot, 2 = distance plot
+#' @param  y takes values 1/2. 1 = Ellipse plot, 2 = distance plot
 #' @param  ... allows passing additional paramters
+#' 
+#' @method plot stambaugh
 #' @author Rohit Arora
 #' @export
 #' 
-plot.stambaugh <- function(x, which=c(1,2),...) {
+plot.stambaugh <- function(x, y=c(1,2),...) {
       
     n <- length(x$models)
-    if (n != 2 && which[1] == 1) stop("2 models needed for ellipse plot")
+    if (n != 2 && y[1] == 1) stop("2 models needed for ellipse plot")
         
-    which <- which[1]
+    which <- y[1]
     
     if(!which %in% c(1,2)) stop("Unknown plot selected")
 
@@ -473,11 +476,12 @@ plotmissing <- function(data, which=c(3,4)) {
       ind.ind <- seq.int(1, length(ind), length.out = min(10,length(ind)))
       ind <- ind[ind.ind]
       
-      p <- ggplot(data=d, aes(x=Index,y=Returns,colour=Symbol,group=Symbol)) + 
+      p <- ggplot(data=d, aes_string(x='Index', y='Returns', colour='Symbol', group='Symbol')) + 
         geom_line() + 
         xlab("Dates") + ylab("Returns") +
         scale_x_discrete(breaks = ind, labels=year.dates[ind]) +
-        facet_wrap(~Symbol, ncol=round(sqrt(symCount)), scales = "free_x")
+        facet_wrap(~Symbol, ncol=round(sqrt(symCount)), scales = "free_x") + 
+        theme(legend.position="none")
       
       print(p)
     }

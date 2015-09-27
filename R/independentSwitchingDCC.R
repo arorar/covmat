@@ -294,9 +294,9 @@ isdccfit <- function(R, numRegimes=NA,
   cl <- NULL
   if (isParallel) {
     cl <- makeCluster(detectCores())
-    clusterExport(cl, list = c(".helper.loglik", ".TransitionProb", 
+    clusterExport(cl, varlist = c(".helper.loglik", ".TransitionProb", 
                                ".initFilterProb", "dmvnorm"))
-    registerDoSNOW(cl)  
+    registerDoParallel(cl)  
   }
 
   fit <- DEoptim(fn = .isdcc.loglik, 
@@ -344,7 +344,7 @@ isdccfit <- function(R, numRegimes=NA,
 #' Plot implied states using the fitted Independent Switching DCC model
 #' 
 #' @param x model of the type isdcc obtained by fitting an IS-DCC model to the data
-#' @param  which.plot takes values 1/2. 1 = Implied States, 2 = Smoothed Proabability
+#' @param  y type of plot. takes values 1/2. 1 = Implied States, 2 = Smoothed Proabability
 #' @param ... additional arguments unused
 #' @author Rohit Arora
 #' @examples 
@@ -354,11 +354,12 @@ isdccfit <- function(R, numRegimes=NA,
 #'  plot(model)
 #' }
 #' 
+#' @method plot isdcc
 #' @export
 #' 
-plot.isdcc <- function(x, which.plot=c(1,2),...){
+plot.isdcc <- function(x, y = c(1,2), ...){
   
-  which.plot <- which.plot[1]
+  which.plot <- y[1]
   
   prob <- x$filtProb
   states <- apply(prob, 1, which.max)

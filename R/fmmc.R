@@ -12,6 +12,7 @@
 #' aligned by truncating date in the begining or end is returns have unequal
 #' available return histories.
 #' 
+#' @importFrom factorAnalytics fmmc
 #' @param  R vector of asset returns in xts format
 #' @param  factors matrix of factor returns in xts format
 #' @param  robust boolean to indicate if robust methods must be used for fitting

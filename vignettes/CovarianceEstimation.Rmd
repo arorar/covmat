@@ -39,9 +39,7 @@ options("citation_format" = "pandoc")
 library(covmat)
 library(xts)
 library(robust)
-
 library(PortfolioAnalytics)
-library(covmat)
 library(rmgarch)
 ```
 
@@ -200,7 +198,7 @@ We can construct the covariance matrix as follows. Additional arguments can be p
 
 ```{r FMMC, warning=FALSE, error=FALSE, message=FALSE}
 
-fmmc <- fmmc.cov(symdata, factor.data, parallel = FALSE)
+fmmc <- fmmc.cov(R = symdata, factors = factor.data, parallel = FALSE)
 
 ```
 

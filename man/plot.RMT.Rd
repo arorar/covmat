@@ -4,10 +4,12 @@
 \alias{plot.RMT}
 \title{Eigenvalue plot}
 \usage{
-plot.RMT(x, ...)
+\method{plot}{RMT}(x, y, ...)
 }
 \arguments{
 \item{x}{model of the type RMT obtained by fitting an RMT model to the data}
+
+\item{y}{unused}
 
 \item{...}{additional arguments unused}
 }

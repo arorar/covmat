@@ -1,14 +1,21 @@
 Package: covmat
 Type: Package
-Title: Ccovariance Matrix estimation
+Title: Covariance Matrix Estimation
 Version: 1.0
-Date: 2015-08-21
+Date: 2015-09-25
 Author: Rohit Arora
-Contributors: TODO
 Maintainer: Rohit Arora <emailrohitarora@gmail.com>
-Description: The package contains a selection of methods for estimating convariance matrices
+Description: We implement a collection of techniques for estimating convariance matrices. 
+              Covariance matrices can be built using missing data. Stambaugh Estimation and 
+              FMMC methods can be used to construct such matrices. Covariance matrices can 
+              be built by denoising or shrinking the eigenvalues of a sample covariance 
+              matrix. Such techniques work by exploiting the tools in Random Matrix Theory 
+              to analyse the distribution of eigenvalues. Covariance matrices can also 
+              be built assuming that data has many underlying regimes. Each regime is 
+              allowed to follow a Dynamic Conditional Correlation model. Robust covariance 
+              matrices can be constructed by multivariate cleaning and smoothing of noisy data.
 License: Artistic-2.0
-Suggests: knitr, testthat, roxygen2
+Suggests: knitr, knitcitations, testthat, roxygen2, quantmod, PortfolioAnalytics, rmgarch
 VignetteBuilder: knitr
 LazyLoad: yes
 Imports: 
@@ -20,14 +27,11 @@ Imports:
   RCurl, 
   VIM, 
   ggplot2,
-  knitcitations, 
-  quantmod,
   reshape2,
   CerioliOutlierDetection,
   Matrix,
   parallel,
-  snow,
-  doSNOW,
+  doParallel,
   fGarch, 
   lhs,
   scales,
@@ -37,3 +41,4 @@ Imports:
   foreach
 Depends: mvtnorm, RMTstat, grid
 NeedsCompilation: yes
+Additional_repositories: http://R-Forge.R-project.org

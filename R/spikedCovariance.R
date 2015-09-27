@@ -204,10 +204,9 @@
 #' Fitting median to the data
 #' 
 #' @details
-#' This method calculates the median of the eigenvalues given 
-#' that they follow a Marchenko–Pastur distribution. The median is matched to the
-#' 50% quantile from the MP distribution. This helps fit scale.factor to the
-#' data 
+#' This method calculates the median of the eigenvalues given that they follow 
+#' a Marchenko Pastur distribution. The median is matched to the 50 percentile
+#' quantile from the MP distribution. This helps fit scale.factor to the data
 #' 
 #' @param theta parameter to be optimized. In this case it is 
 #'          gamma, (variables/observations)
@@ -231,8 +230,7 @@
 #' 
 #' @details
 #' This method takes in the eigenvalues of the sample covariance matrix and fits 
-#' a Marchenko–Pastur distribution. The eigenvalues are assumed to have unit
-#' variance
+#' a Marchenko Pastur distribution. The eigenvalues are assumed to have unit variance
 #' 
 #' @param lambdas eigenvalues of the sample covariance matrix
 #' @param gamma   ratio of varibales/observations
@@ -434,9 +432,10 @@ estSpikedCovariance <- function(R, gamma = NA,
   
   norm <- if(statistical) "Statistical" else paste(norm," Norm", sep="")
   
-  p <- ggplot(data = df, aes(x = samplee, y = shrunke )) + 
-    geom_point(aes(color = typeofloss)) + geom_line(aes(color = typeofloss)) + 
-    geom_abline(aes(color = "y=x"), slope=1, intercept=0) + 
+  p <- ggplot(data = df, aes_string(x = 'samplee', y = 'shrunke' )) + 
+    geom_point(aes_string(color = 'typeofloss')) + 
+    geom_line(aes_string(color = 'typeofloss')) + 
+    geom_abline(aes_string(color = "y=x"), slope=1, intercept=0) + 
     scale_color_manual("", values = colors) + 
     xlab("Sample Eigenvalues") + ylab("Shrunk Eigenvalues") + 
     scale_x_continuous(breaks=pretty_breaks(n=10)) +
@@ -456,7 +455,7 @@ estSpikedCovariance <- function(R, gamma = NA,
 #' 
 #' @importFrom scales pretty_breaks
 #' @importFrom gridExtra grid.arrange
-#' @importFrom grid textGrob
+#' @importFrom grid textGrob gpar
 #' 
 #' @param R xts object of asset returns
 #' @param gamma  ratio of varibales/observations. If NA it will be set to 
