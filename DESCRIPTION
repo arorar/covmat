@@ -1,11 +1,11 @@
 Package: covmat
 Type: Package
 Title: Covariance Matrix Estimation
-Version: 1.0
+Version: 1.1
 Date: 2015-09-25
 Author: Rohit Arora
 Maintainer: Rohit Arora <emailrohitarora@gmail.com>
-Description: We implement a collection of techniques for estimating convariance matrices. 
+Description:  We implement a collection of techniques for estimating convariance matrices. 
               Covariance matrices can be built using missing data. Stambaugh Estimation and 
               FMMC methods can be used to construct such matrices. Covariance matrices can 
               be built by denoising or shrinking the eigenvalues of a sample covariance 
