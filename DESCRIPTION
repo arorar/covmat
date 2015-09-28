@@ -15,7 +15,7 @@ Description: We implement a collection of techniques for estimating convariance 
               allowed to follow a Dynamic Conditional Correlation model. Robust covariance 
               matrices can be constructed by multivariate cleaning and smoothing of noisy data.
 License: Artistic-2.0
-Suggests: knitr, knitcitations, testthat, roxygen2, quantmod, PortfolioAnalytics, rmgarch
+Suggests: knitr, knitcitations, testthat, roxygen2, quantmod, PortfolioAnalytics
 VignetteBuilder: knitr
 LazyLoad: yes
 Imports: 
