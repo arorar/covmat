@@ -188,6 +188,7 @@
 #' 
 #' @importFrom optimx optimx
 #' @importFrom parallel parRapply parSapply
+#' @importFrom robustbase covMcd
 #' 
 #' @param R data
 #' @param startup_period length of samples required to calculate initial values

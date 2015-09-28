@@ -26,7 +26,7 @@ plot.RMT <- function(x, y, ...){
     lambda.max <- x$lambdascutoff 
     
     p <- ggplot(data=data.frame(lambdas)) + 
-        geom_histogram( aes_string(x = lambdas, y='..density..'),
+        geom_histogram( aes_string(x = 'lambdas', y='..density..'),
                         breaks=seq(min(lambdas)-1,1+max(lambdas),0.5), 
                         colour="black", fill="white") +
         stat_function(fun = dmp, args=list(svr = Q, var=sigma.sq), 
