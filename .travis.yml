@@ -22,8 +22,8 @@ install:
   - ./travis-tool.sh install_github yihui/knitr
   - ./travis-tool.sh install_github arorar/FactorAnalytics
 
-r_binary_packages:
- - rmgarch
+apt_packages:
+ - libgmp3-dev
 
 after_success:
   - Rscript -e 'library(covr);coveralls()'
