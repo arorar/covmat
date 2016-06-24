@@ -10,6 +10,7 @@ before_install:
   - curl -OL http://raw.github.com/craigcitro/r-travis/master/scripts/travis-tool.sh
   - chmod 755 ./travis-tool.sh
   - ./travis-tool.sh bootstrap
+  - sudo apt-get install libgmp3-dev
   
 r_build_args: "--no-build-vignettes --no-manual"
 r_check_args: "--no-build-vignettes --no-manual --as-cran"
@@ -21,9 +22,6 @@ install:
   - ./travis-tool.sh install_github jimhester/covr
   - ./travis-tool.sh install_github yihui/knitr
   - ./travis-tool.sh install_github arorar/FactorAnalytics
-
-apt_packages:
- - libgmp3-dev
 
 after_success:
   - Rscript -e 'library(covr);coveralls()'
