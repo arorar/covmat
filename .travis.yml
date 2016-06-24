@@ -10,7 +10,7 @@ before_install:
   - curl -OL http://raw.github.com/craigcitro/r-travis/master/scripts/travis-tool.sh
   - chmod 755 ./travis-tool.sh
   - ./travis-tool.sh bootstrap
-  - sudo apt-get install libgmp3-dev
+  - sudo apt-get install libgmp3-dev libmpfr-dev
   
 r_build_args: "--no-build-vignettes --no-manual"
 r_check_args: "--no-build-vignettes --no-manual --as-cran"
