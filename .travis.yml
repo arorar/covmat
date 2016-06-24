@@ -23,7 +23,7 @@ install:
   - ./travis-tool.sh install_github arorar/FactorAnalytics
 
 r_binary_packages:
- - rmpfr
+ - rmgarch
 
 after_success:
   - Rscript -e 'library(covr);coveralls()'
